@@ -1,0 +1,13 @@
+/* Initial states for JS-driven reveals. Only applied when JS runs and motion is allowed. */
+.js.motion [data-reveal], .js.motion [data-stagger] > *, .js.motion [data-hero-in] { opacity: 0; transform: translateY(28px); }
+.js.motion [data-split] .w-in, .js.motion [data-split='hero'] .w-in { display: inline-block; transform: translateY(105%); }
+[data-split] .w { overflow: hidden; vertical-align: top; padding-bottom: 0.06em; margin-bottom: -0.06em; }
+.lead[data-scrub] .w { color: rgba(255, 255, 255, 0.16); }
+.no-motion .lead[data-scrub] .w, .no-js .lead .w { color: inherit; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+  .grain { display: none; }
+}
+.js.motion [data-split]:not([data-split-done]) { visibility: hidden; }
+.curtain-in .curtain { transform: none; }

@@ -1,0 +1,25 @@
+{
+  "name": "grow-greece-site",
+  "private": true,
+  "version": "1.0.0",
+  "description": "GROW Agency — Greek website (marketingagencygreece.online)",
+  "type": "module",
+  "scripts": {
+    "copy": "python3 -I tools/extract-copy.py content/site-copy.docx content/copy.json",
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch",
+    "preview": "node tools/serve.mjs"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@fontsource-variable/manrope": "^5.3.0",
+    "@fontsource-variable/space-grotesk": "^5.3.0",
+    "gsap": "^3.15.0",
+    "lenis": "^1.3.26",
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}

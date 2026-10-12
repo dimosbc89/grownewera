@@ -1,0 +1,38 @@
+/* GROW brand tokens — the one place to change colours, type and spacing. */
+:root {
+  /* Palette */
+  --black: #000000;
+  --panel: #0a0a0a;
+  --panel-2: #121212;
+  --white: #ffffff;
+  --grey: #bababa;
+  --grey-2: #7a7a7a;
+  --lime: #ccff00;
+  --red: #ff3d2e;
+  --line: rgba(255, 255, 255, 0.14);
+  --line-strong: rgba(255, 255, 255, 0.34);
+
+  /* Type: Space Grotesk has no Greek, so Greek glyphs fall through to Manrope (same weight/feel). */
+  --font-display: 'Space Grotesk Variable', 'Manrope Variable', 'Arial Black', system-ui, sans-serif;
+  --font-body: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SFMono-Regular', monospace;
+
+  --fs-hero: clamp(2.1rem, 1.1rem + 3.6vw, 5.4rem);
+  --fs-h2: clamp(1.9rem, 1.2rem + 2.8vw, 4.1rem);
+  --fs-h3: clamp(1.15rem, 1rem + 0.6vw, 1.55rem);
+  --fs-lead: clamp(1.35rem, 1rem + 1.6vw, 2.5rem);
+  --fs-body: clamp(1rem, 0.96rem + 0.18vw, 1.125rem);
+  --fs-small: 0.875rem;
+  --fs-mono: 0.75rem;
+
+  /* Space */
+  --gutter: clamp(16px, 3.4vw, 48px);
+  --max: 1440px;
+  --sec-y: clamp(80px, 11vw, 168px);
+  --header-h: 72px;
+
+  /* Motion */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --dur: 0.6s;
+}
