@@ -171,3 +171,43 @@ refuses the filesystem root, the repo or any of its parents, anything inside the
 
 Debugging WebGL: `?gl=high|mid|low` forces the starting tier and disables the automatic drop
 (useful in software-GL test browsers, which always drop); `?gl=off` skips WebGL entirely.
+
+## Motion layer additions (src/js/motion/*, src/css/motion.css)
+
+New modules: `ease.js` (CustomEase set `grow.out|expo|inOut|wipe|lift|in`, exported as `EASE`),
+`velocity.js` (one smoothed scroll velocity, `velocity()` in px/s, and `skew(el, { k, max, axis })`
+for velocity-leaning big type; never on a `[data-depth]` element), `scramble.js`
+(`scramble(el, { duration, delay })`, text nodes only, exact restore). `util.js` adds `touch`,
+`damp(rate, dt)`, `busy` (WeakSet: elements mid-reveal, pointer tilt skips them) and
+`gridEdges()` / `makeColumns()` (the four brutalist columns on the hero grid lines, shared by the
+preloader and the page transition). `initMotion()` and `main.js` are idempotent (one boot).
+
+Hooks and classes added (all decorative injections are `aria-hidden`):
+
+* `split()` chars mode: when the heading is uppercased by CSS, char units hold the word uppercased
+  with the page language (Greek accents drop as for the whole word), the heading gets the original
+  copy as `aria-label` and the units are `aria-hidden`. `lines(units)` groups units per line.
+  `[data-split].is-in`: revealed, masks lifted. The hero title gets an inner `.hero__title-in`
+  wrapper (exit transform; the h1 keeps `[data-depth]`).
+* `.trust` gets `data-depth="-0.14"` at runtime when the markup has none (foreground layer).
+* `[data-clip]`: `.clip-cover` (lime block, removed after the wipe), `.is-clipped` when done.
+* `[data-stack]` grids reveal by opacity only (supersedes "the reveal owns `y`": pin.js owns the
+  cards' transforms: scale, `rotationX` tilt-back, `yPercent` hold).
+* `[data-steps]`: `.is-active` is measured on the list (step tops crossing 65%), like the story.
+  `[data-story]`: `.is-current` on the current step, `.story__progress` rule in the stage.
+* `[data-pin-statement]`: each paragraph's first sentence is wrapped in `.stmt-key` (text
+  unchanged); paragraphs get `.is-current` / `.is-past`; pinned desktop variant adds `.stmt-hud`
+  in the heading. `[data-hscroll]`: `.hscroll__hud` while pinned; `.hscroll.is-swipe` (native
+  horizontal swipe) on touch screens ≥761px, where nothing is pinned.
+* Legal TOC: `.toc__progress` on its top rule. Filters: list `min-height` held during Flip.
+* Preloader: `.preloader__cols` / `.preloader__col`, `.has-cols`, `.is-lifting`, `.pl-c` letters,
+  `.preloader__wipe`. `grow:ready` fires as the columns start lifting (~1.3s); CSS failsafe 2.4s.
+* Curtain: `.curtain__frame` > `.curtain__cols` (`.curtain__col` ×4) + `.curtain__label`
+  (`.curtain__path`, `.curtain__name`), `.has-cols`. sessionStorage `grow-curtain-label`
+  (`{ name, path }`, written on leave, read and removed on arrival). Internal pages are
+  prefetched (`<link rel=prefetch>`) on hover / click.
+* Cursor: `.is-btn`, `.is-glyph` (+ / − / ↗ labels), `.is-dark` (over lime) besides the existing
+  `.is-link`, `.is-label`, `.is-text`.
+* `<html>.motion-failed` (main.js): the motion layer threw; motion.css drops inline hidden states.
+* Touch (`(hover: none)` or `(pointer: coarse)`): no ScrollTrigger pins (reel swipes, statement
+  lights up per paragraph), lighter flip-in, drift and skew. Reduced motion: none of the above.
