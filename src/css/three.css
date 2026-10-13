@@ -8,6 +8,9 @@ canvas[data-scene] { display: block; pointer-events: none; }
 .js.motion canvas[data-scene][data-ready] { opacity: 1; }
 .js.motion .hero__canvas { transform: scale(1.08); transition: opacity 1.6s var(--ease), transform 2.6s var(--ease); }
 .js.motion .hero__canvas[data-ready] { transform: none; }
+/* WebGL context lost and not restored within a few seconds (core.js): hide the frozen canvas; it
+   fades back in if the browser restores the context. */
+canvas[data-scene][data-lost] { opacity: 0 !important; }
 
 /* ---------- Hero ---------- */
 .hero__stage { position: absolute; inset: 0; z-index: -1; }

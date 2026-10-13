@@ -32,11 +32,13 @@ src/js/motion/transitions.js page transitions (curtain)
 src/js/motion/ui.js         FAQ, filters (+ Flip), counters, legal TOC, [data-scramble], [data-strike]
 src/js/three/index.js       initThree(): finds canvases, picks quality tier, lazy-imports the rest
 src/js/three/core.js        async createStage(canvas, opts): renderer, scene, camera, rig, post-processing, loop
-src/js/three/post.js        bloom + grain composer for the `high` tier (lazy-imported by core.js)
+src/js/three/post.js        `high` tier pipeline: MSAA target, selective bloom, grain/aberration/vignette (lazy)
 src/js/three/util.js        brand palette, materials, dust, easing, simplex noise, disposeTree
 src/js/three/scenes/*.js    one hero scene per file: helix, bars, orb, panels, blocks, globe
 src/js/three/story.js       scroll-story morphing particles (canvas[data-scene="story"])
+src/js/three/story-shapes.js story shape sets ([data-story] value -> shapes) and the step -> shape mapping
 src/js/three/wordmark.js    CTA 3D "GROW." wordmark (canvas[data-scene="wordmark"])
+src/js/three/wordmark-glyphs.json  "GROW." outlines from Space Grotesk 700 (tools/wordmark-glyphs.mjs)
 src/css/motion.css          initial/hidden states and CSS used only by the motion layer
 src/css/three.css           canvas/stage styling used only by the WebGL layer
 ```
@@ -69,12 +71,42 @@ export default function build(ctx) {
 `time` is seconds of *visible* animation: it stays at 0 while the first-visit preloader covers the
 page and does not advance while the canvas is paused, so intros always play on screen.
 `createStage()` is async: it builds in steps, each in its own idle slot (context, environment map,
-scene build, shader compile with `KHR_parallel_shader_compile` where available, then bloom/grain,
-which ease in), so it never blocks the main thread for the whole setup. It resolves with the stage
-once the first frame is queued (or `null` if the canvas left the page); a rejection makes
-`three/index.js` fall back. No stage starts this work before `grow:hero-in`.
+scene build, post-processing targets on the high tier, shader compile with
+`KHR_parallel_shader_compile` where available; bloom/grain ease in), so it never blocks the main
+thread for the whole setup. It resolves with the stage once the first frame is queued (or `null`
+if the canvas left the page); a rejection makes `three/index.js` fall back. No stage starts this
+work before `grow:hero-in`.
 `story.js` and `wordmark.js` export `mount(canvas, opts)` and build on `createStage` with
 `layout: 'center'` (no hero rig offset, no post-processing).
+
+#### Engine additions (three/core.js, post.js)
+
+* `ctx.input`: `pointer` (the object `update()` gets), `velocity { x, y, scroll }` (smoothed;
+  pointer in -1..1 units/s, y up; scroll in viewport heights/s, down > 0), `local { x, y, inside }`
+  (pointer in the canvas's own NDC, y up; only for stages created with `localPointer: true`) and
+  `active` (0..1, the pointer moved recently). Touch devices: pointer values stay 0.
+* `ctx.clock`: `{ elapsed, started }`, seconds since `grow:ready`, shared by every stage (started
+  by three/index.js at boot). Scene `time` keeps its meaning (visible seconds of this canvas).
+* `build(ctx)` may also return:
+  `bloom: { strength, radius, threshold, white }` (high tier; read every frame, so it can animate;
+  defaults `post.js` `BLOOM` = 0.8 / 0.65 / 0.72 / 0.1). `threshold` is linear HDR brightness (max
+  channel); only the excess above it glows, scaled by saturation, so lime and emissive parts glow
+  while lit white/grey surfaces stay crisp (`white`, 0..1, is how much they may still glow).
+  `render(ctx)`: replaces `renderer.render(scene, camera)` on stages without post-processing.
+  `restore(ctx)`: after a lost WebGL context came back (re-render render-to-texture results).
+* High tier pipeline: the hero's context is created without antialiasing; the scene renders into a
+  half-float MSAA x4 target, then bloom, then one final pass (very subtle edge chromatic
+  aberration, vignette, the renderer's tone mapping + sRGB, fine luminance-weighted grain). A tier
+  drop keeps the MSAA target and tone mapping and turns the effects off.
+* Lifecycle: ResizeObserver on the canvas plus devicePixelRatio changes; the loop pauses off-screen,
+  in a hidden tab and at zero size (e.g. `display: none`). On `webglcontextlost` the loop stops;
+  after 4s without a restore the canvas gets `data-lost` (three.css hides it); on restore the
+  environment map is rebuilt and drawing resumes.
+* Story (`story.js`): `data-story` sets are `growth` (default; also any unknown value), `ads`,
+  `seo`, `build`, `social`, `booth`, `company`, `contact`, `case` (shapes in story-shapes.js). Step
+  i shows shape i of the set; fewer steps than shapes pick evenly spread shapes, more steps cycle,
+  and the last step always ends on the set's last shape. A morph (~1.9s, staggered per particle)
+  starts when `step` changes; `progress` drives the camera drift.
 
 ## DOM hooks
 
@@ -145,7 +177,7 @@ once the first frame is queued (or `null` if the canvas left the page); a reject
 
 * `prefers-reduced-motion: reduce` -> no Lenis, no pins/scrubs/parallax, WebGL renders one still
   frame, everything visible. Without JS everything is visible.
-* WebGL tiers: `high` (fine pointer, ≥6 cores or unknown) -> post-processing (bloom, grain);
+* WebGL tiers: `high` (fine pointer, ≥6 cores or unknown) -> post-processing (MSAA, bloom, grain);
   `mid` (touch / small screens / ≤4 cores) -> no post, DPR ≤ 1.5; `low` (reduced motion) -> still.
   Drop a tier automatically when frames average > 24ms for 2s. Pause every canvas when off-screen
   or when the tab is hidden. (A tier reached by dropping keeps animating: `low` then means DPR 1;
@@ -168,6 +200,10 @@ the working directory (default `<repo>/dist`). The output folder is wiped first,
 refuses the filesystem root, the repo or any of its parents, anything inside the repo except
 `dist/` and `.builds/<name>/`, files, and non-empty folders that do not hold a previous build
 (`assets/` + `404.html`).
+
+`node tools/wordmark-glyphs.mjs` regenerates `src/js/three/wordmark-glyphs.json` from the static
+Space Grotesk 700 (devDependencies `opentype.js`, `@fontsource/space-grotesk`). The JSON is
+committed; the site build never needs the font parser.
 
 Debugging WebGL: `?gl=high|mid|low` forces the starting tier and disables the automatic drop
 (useful in software-GL test browsers, which always drop); `?gl=off` skips WebGL entirely.

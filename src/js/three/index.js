@@ -1,6 +1,6 @@
 // initThree(): finds canvas[data-scene], checks WebGL2, picks a quality tier and lazy-loads
 // core.js + the scene module. Nothing from three.js is in the main bundle.
-//   Tiers: high (fine pointer, >= 6 cores or unknown) -> bloom + grain on the hero
+//   Tiers: high (fine pointer, >= 6 cores or unknown) -> MSAA + selective bloom + grain on the hero
 //          mid  (touch, small screens, <= 4 cores)    -> no post, DPR <= 1.5
 //          low  (prefers-reduced-motion)              -> still frames only
 //   Debug: ?gl=high|mid|low forces the starting tier, ?gl=off disables WebGL.
@@ -47,6 +47,17 @@ export function initThree() {
 
   const motion = root.classList.contains('motion');
   const quality = ['high', 'mid', 'low'].includes(force) ? force : pickQuality({ motion });
+  // Shared time base for every stage (ctx.clock.elapsed): seconds since `grow:ready`, so effects
+  // that should agree across canvases (grain, light sweeps) share one clock. Started here at boot
+  // because the stages load lazily, after the event.
+  const clock = {
+    t0: -1,
+    get started() { return this.t0 >= 0; },
+    get elapsed() { return this.t0 < 0 ? 0 : (performance.now() - this.t0) / 1000; },
+  };
+  const startClock = () => { if (clock.t0 < 0) clock.t0 = performance.now(); };
+  addEventListener('grow:ready', startClock, { once: true });
+  setTimeout(startClock, 4000); // a failed motion layer never fires it
   // On a first visit the preloader covers the page: hold scene time until `grow:ready`.
   const gate = root.classList.contains('is-loading')
     ? new Promise((resolve) => { addEventListener('grow:ready', resolve, { once: true }); setTimeout(resolve, 2500); })
@@ -73,6 +84,7 @@ export function initThree() {
     autoDrop: !force,
     gate,
     after: settled,
+    clock,
   };
   root.dataset.gl = quality;
 
