@@ -19,6 +19,9 @@ removing a hook is a breaking change: update this file and every consumer in the
 src/js/main.js              boot only: initMotion(), initThree(), initForm(), initCookies()
 src/js/motion/index.js      initMotion(): runs every motion module in order, returns { lenis, scrollTo }
 src/js/motion/util.js       shared flags (motion, finePointer) and DOM helpers ($, $$, headerH, pad, clamp)
+src/js/motion/ease.js       CustomEase curves shared by every module (`EASE`)
+src/js/motion/velocity.js   one smoothed scroll velocity (`velocity()`) and `skew()` for velocity-leaning type
+src/js/motion/scramble.js   `scramble(el)`: text-decode effect with exact restore
 src/js/motion/smooth.js     Lenis + ScrollTrigger glue (lenis, scrollTo, refresh helpers)
 src/js/motion/split.js      split(el, { mode: 'words' | 'chars' }) -> inner spans
 src/js/motion/header.js     sticky header, progress bar, mega menus, mobile menu
@@ -35,6 +38,8 @@ src/js/three/core.js        async createStage(canvas, opts): renderer, scene, ca
 src/js/three/post.js        `high` tier pipeline: MSAA target, selective bloom, grain/aberration/vignette (lazy)
 src/js/three/util.js        brand palette, materials, dust, easing, simplex noise, disposeTree
 src/js/three/scenes/*.js    one hero scene per file: helix, bars, orb, panels, blocks, globe
+src/js/three/scenes/_shared.js  scene helpers: frame()/shiftFrame() composition, look(), localPointer(), glow/points
+src/js/three/scenes/_land.js    land masks for the globe (Natural Earth, public domain)
 src/js/three/story.js       scroll-story morphing particles (canvas[data-scene="story"])
 src/js/three/story-shapes.js story shape sets ([data-story] value -> shapes) and the step -> shape mapping
 src/js/three/wordmark.js    CTA 3D "GROW." wordmark (canvas[data-scene="wordmark"])
@@ -110,8 +115,9 @@ work before `grow:hero-in`.
 
 #### Hero scenes (`scenes/*.js`, helpers in `scenes/_shared.js`, land masks in `scenes/_land.js`)
 
-* A scene may also return `bloom: { strength, radius, threshold }`: its bloom settings for the
-  `high` tier (`createPost()` options). Each scene is tuned to look right with the defaults too.
+* Every scene returns `bloom: { strength, radius, threshold }` (see "Engine additions": read each
+  frame on the `high` tier, merged over post.js `BLOOM`, so `white` keeps its default). Each scene
+  also looks right with the defaults.
 * Composition is the scene's job: `frame()` (called from the scene's `resize`) resets the rig to
   the origin, scales it and shifts the projection with `camera.setViewOffset`, so the object sits
   right of the measured hero copy on wide canvases (never under it) and above / behind the
@@ -210,8 +216,8 @@ three/story.js must accept every set (falling back to `growth` for one it does n
   with the breadcrumbs, outside `.hero__inner`), `.hero__foot.hero__data` (aria-hidden mono strip of
   `.hero__cell` > `.hero__k` + `.hero__v`; keeps `.scroll-cue` and `.coords`), and on pages with a
   scene `.hero__hud[data-depth]` (viewfinder corners + `.hero__fig` caption around the 3D stage;
-  hidden on phones and when `.hero__stage.is-static`). On desktop the copy column stays within
-  ~60% of the width, so the right ~40% is free for the hero rig.
+  hidden on phones; three/index.js removes it with the stage when WebGL is off or fails). On
+  desktop the copy column stays within ~60% of the width, so the right ~40% is free for the rig.
 * CTA: `.cta__rail` (aria-hidden mono row along the band's bottom) sits outside `.cta__inner`, which
   holds the copy only (three/wordmark.js measures it). The copy column is ≤ ~13ch / 46ch wide.
 * Story stage extras: `.story__set` (set label) and `.story__bar > i` (progress rule,
@@ -223,8 +229,9 @@ three/story.js must accept every set (falling back to `growth` for one it does n
 * Illustrations (lib/illustrations.mjs): `illustration(name, small)` with `name` in
   `search meta tiktok chat seo content web shop calendar influencer booth map dashboard`
   (`ads`/`social` are aliases). Per-page choice: `ARTS` / `HOME_ARTS` / `PROJECT_ARTS` in
-  lib/site.mjs (wins over build.mjs `ART`). Staged build classes (`.i-pop .i-float .i-bar .i-grow
-  .i-path .i-route .i-dot .i-person .i-score`) are hidden only under `.js.motion` until `.ill.is-in`.
+  lib/site.mjs (build.mjs sets `page.art` from `ARTS`). Staged build classes (`.i-pop .i-float
+  .i-bar .i-grow .i-path .i-route .i-dot .i-person .i-score`) are hidden only under `.js.motion`
+  until `.ill.is-in`.
 
 ## Quality and accessibility rules
 

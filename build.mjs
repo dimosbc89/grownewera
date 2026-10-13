@@ -9,7 +9,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 import { loadContent } from './lib/content.mjs';
-import { SITE, SCENES } from './lib/site.mjs';
+import { SITE, ARTS } from './lib/site.mjs';
 import { esc, fmt, flow, section, bgnum } from './lib/render.mjs';
 import { header, hero, marquee, ctaBand, footer, cookieBanner, form, notFound, preloader } from './lib/layout.mjs';
 
@@ -66,19 +66,6 @@ const KIND = (url) =>
   : url === '/epikoinonia/' ? 'contact'
   : url === '/blog/' ? 'blog'
   : 'legal';
-
-const ART = {
-  '/': 'dashboard', '/ypiresies/': 'dashboard',
-  '/ypiresies/google-ads/': 'search', '/ypiresies/facebook-instagram-ads/': 'social',
-  '/ypiresies/tiktok-ads/': 'social', '/ypiresies/chatgpt-ads/': 'chat',
-  '/ypiresies/proothisi-istoselidon/': 'seo', '/ypiresies/content-marketing/': 'web',
-  '/ypiresies/kataskevi-istoselidon/': 'web', '/ypiresies/kataskevi-eshop/': 'web',
-  '/ypiresies/diaxeirisi-social-media/': 'social', '/ypiresies/influencer-marketing/': 'social',
-  '/ypiresies/ekthesiaka-periptera/': 'booth', '/lyseis/eshop/': 'dashboard',
-  '/lyseis/topikes-epixeiriseis/': 'map', '/lyseis/b2b/': 'booth',
-  '/erga/demo-eshop/': 'dashboard', '/erga/demo-topiki-epixeirisi/': 'map', '/erga/demo-b2b/': 'booth',
-  '/etaireia/': 'dashboard',
-};
 
 function jsonLd(page, faqs) {
   const org = {
@@ -170,7 +157,7 @@ ${cookieBanner(shared)}
 
 function renderPage(page, shared, assets) {
   page.kind = KIND(page.url);
-  page.art = ART[page.url];
+  page.art = ARTS[page.url]; // illustration per page: lib/site.mjs
   const ctx = { url: page.url, filters: [], form: (blocks) => form(shared, blocks) };
 
   // FAQ entries for structured data.

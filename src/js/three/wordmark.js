@@ -202,8 +202,10 @@ function buildWordmark(ctx) {
       const aspect = W / H;
       let settled = true;
       for (const L of letters) {
-        // Assembly: scroll-driven target, spring-followed (a little overshoot when landing).
-        const target = motion ? clamp01((scroll - 0.1 - L.i * 0.04) / 0.2) : 1;
+        // Assembly: scroll-driven target, spring-followed (a little overshoot when landing). The
+        // band is about a viewport tall, so the last letter lands by the time its top edge has
+        // reached ~20% of the viewport (progress 0.38), i.e. while the whole band is on screen.
+        const target = motion ? clamp01((scroll - 0.06 - L.i * 0.035) / 0.18) : 1;
         // Pointer tilt: letters near the pointer turn towards it (springy), plus an idle sway.
         let tx = 0;
         let ty = 0;

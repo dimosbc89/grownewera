@@ -145,8 +145,9 @@ function initStories() {
     const n = steps.length;
     const count = $('[data-story-step]', story);
     const stage = $('.story__stage', story);
+    // The markup's own progress rule (.story__bar, scaleX(var(--story))) wins; else add one.
     let fill = null;
-    if (stage && motion) {
+    if (stage && motion && !$('.story__bar', stage)) {
       const bar = hud('story__progress', '<i></i>');
       stage.append(bar);
       fill = $('i', bar);

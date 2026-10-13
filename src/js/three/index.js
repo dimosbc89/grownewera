@@ -32,7 +32,11 @@ const hasWebGL2 = () => typeof WebGL2RenderingContext !== 'undefined';
 
 function fallback(canvas) {
   const heroStage = canvas.closest('.hero__stage');
-  if (heroStage) return heroStage.remove();
+  if (heroStage) {
+    // The viewfinder frame around the stage (markup's .hero__hud) would frame an empty area.
+    heroStage.parentElement?.querySelector(':scope > .hero__hud')?.remove();
+    return heroStage.remove();
+  }
   canvas.parentElement?.classList.add('is-static');
   canvas.remove();
 }

@@ -22,7 +22,7 @@ canvas[data-scene][data-lost] { opacity: 0 !important; }
     linear-gradient(0deg, var(--black) 0%, rgba(0, 0, 0, 0) 40%);
 }
 @media (max-width: 720px) {
-  .hero__stage { opacity: 0.55; }
+  .hero__stage { opacity: 0.7; } /* scenes compose above / behind the headline here (scenes/_shared.js frame()) */
   .hero__stage::after { background: linear-gradient(0deg, var(--black) 10%, rgba(0, 0, 0, 0.5) 60%, rgba(0, 0, 0, 0.3) 100%); }
 }
 
