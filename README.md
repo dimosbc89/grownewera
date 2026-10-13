@@ -49,9 +49,16 @@ without code changes:
 | Heading 3 groups | numbered card grid (FAQ sections become accordions) |
 | Numbered list | scroll-drawn step timeline |
 | Bold bullet list ("Lead. text") | numbered features; red ✕ in problem sections |
-| `[DEMO n]` bold paragraphs | case-study cards linking to `/erga/demo-…/` |
+| Bold paragraphs in a results section ("Αποτελέσματα…", "Πώς φαίνεται στην πράξη", "Παράδειγμα…", "… έργο από κοντά"), or still marked `[DEMO n]` | case-study cards linking to the matching `/erga/…/` page |
+| Paragraphs opening with a «…» quote (or the `[DEMO – κριτική πελάτη]` slot) | testimonial cards |
+| Bold "Name · Role" lines in a people section ("Ποιος…", "Τα πρόσωπα"), each with its bio paragraph | person cards |
+| Bold `A · B · C` lines whose parts start with a number (or `XX`) | stat tiles |
 | `Label: text` bold lines | spec rows |
 | Short English line under a heading | lime punchline |
+
+The layouts follow the structure, not the placeholders, so filling the slots before launch keeps
+every card where it is. The build checks each page kind for the blocks it should have (results,
+testimonials, people, stats) and prints a `[layout]` warning when a copy edit loses one.
 
 ## Brand
 
@@ -70,7 +77,8 @@ The page is `lang="el"`, so uppercase headings drop their accents correctly.
 * Replace the three demo case studies. They are `noindex` and left out of the sitemap until then.
 * Have a lawyer review the three legal pages.
 * Set `formEndpoint` in `lib/site.mjs` (Formspree, Netlify Forms or your own API). Without it the
-  form opens the visitor's email app with the message pre-filled.
+  form opens the visitor's email app with the message pre-filled (also without JavaScript: the
+  form's action is then a `mailto:` URL).
 * Analytics and ads tags: load them only after consent. Listen for the `grow:consent` event or
   read `window.growConsent` (see `src/js/cookies.js`).
 

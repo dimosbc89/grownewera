@@ -45,14 +45,36 @@ export function split(el, { mode } = {}) {
     for (const ch of shown.match(/\P{M}\p{M}*/gu) ?? []) w.append(unit('c', ch));
     return w;
   };
+  // Punctuation right after an inline <mark>/<a> unit ("[κλάδος]: XX%") joins that unit, so the
+  // line can not break between them (plain text would never break there either).
+  const glue = (outer, punct) => {
+    if (mode === 'chars') {
+      const shown = upper ? punct.toLocaleUpperCase(lang) : punct;
+      for (const ch of shown.match(/\P{M}\p{M}*/gu) ?? []) outer.append(unit('c', ch));
+    } else outer.firstChild.append(punct);
+  };
+  let lastInline = null; // outer unit of the last <mark>/<a>, while it is the previous sibling
   const walk = (node) => {
     for (const child of [...node.childNodes]) {
       if (child.nodeType === 3) {
+        let text = child.textContent;
+        if (lastInline && lastInline === child.previousSibling) {
+          const m = text.match(/^[:;,.·!?»)…%]+/);
+          if (m) { glue(lastInline, m[0]); text = text.slice(m[0].length); }
+        }
+        lastInline = null;
         const frag = document.createDocumentFragment();
-        for (const p of child.textContent.split(/(\s+)/)) {
-          if (!p) continue;
-          if (/^\s+$/.test(p)) frag.append(' ');
-          else frag.append(word(p));
+        const parts = text.split(/(\s+)/).filter(Boolean);
+        for (let i = 0; i < parts.length; i++) {
+          const p = parts[i];
+          if (/^\s+$/.test(p)) { frag.append(' '); continue; }
+          // A one-letter word (Η, Ο, Σ…) never ends a line: it travels with the next word.
+          if (/^\p{L}$/u.test(p) && parts[i + 1] && /^\s+$/.test(parts[i + 1]) && parts[i + 2]) {
+            frag.append(word(`${p}\u00a0${parts[i + 2]}`));
+            i += 2;
+            continue;
+          }
+          frag.append(word(p));
         }
         child.replaceWith(frag);
       } else if (child.nodeType === 1 && !child.classList.contains('w')) {
@@ -66,8 +88,12 @@ export function split(el, { mode } = {}) {
             if (labelled) w.setAttribute('aria-hidden', 'true');
             w.append(u);
             holder.replaceWith(w);
-          } else holder.replaceWith(u);
-        } else walk(child);
+            lastInline = w;
+          } else {
+            holder.replaceWith(u);
+            lastInline = u;
+          }
+        } else { lastInline = null; walk(child); }
       }
     }
   };

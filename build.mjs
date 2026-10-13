@@ -9,9 +9,9 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 import { loadContent } from './lib/content.mjs';
-import { SITE, ARTS } from './lib/site.mjs';
+import { SITE, ARTS, SCENES } from './lib/site.mjs';
 import { esc, fmt, flow, section, bgnum } from './lib/render.mjs';
-import { header, hero, marquee, ctaBand, footer, cookieBanner, form, notFound, preloader } from './lib/layout.mjs';
+import { skipLink, header, hero, marquee, ctaBand, footer, cookieBanner, form, notFound, preloader } from './lib/layout.mjs';
 
 const argv = process.argv.slice(2);
 const flag = (name, fallback) => {
@@ -82,9 +82,11 @@ function jsonLd(page, faqs) {
   };
   const graph = [org];
   if (page.trail) {
+    // A crumb without a page of its own (Λύσεις) is visible text only: it has no `item` URL to list.
+    const crumbs = page.trail.filter(([, u], i) => u || i === page.trail.length - 1);
     graph.push({
       '@type': 'BreadcrumbList',
-      itemListElement: page.trail.map(([name, u], i) => ({ '@type': 'ListItem', position: i + 1, name, item: `${SITE.domain}${u ?? page.url}` })),
+      itemListElement: crumbs.map(([name, u], i) => ({ '@type': 'ListItem', position: i + 1, name, item: `${SITE.domain}${u ?? page.url}` })),
     });
   }
   if (page.kind === 'service' && page.meta['Primary term']) {
@@ -109,6 +111,13 @@ function doc(page, main, shared, assets) {
   const desc = page.meta['Meta description'] ?? '';
   const canonical = `${SITE.domain}${page.url ?? '/404.html'}`;
   const noindex = page.kind === 'case' || page.url == null;
+  // The hero scene's module graph, preloaded by three/index.js on the `high` tier.
+  const scene = page.url == null ? 'blocks' : SCENES[page.url];
+  const glPreload = scene ? assets.gl[scene] : null;
+  // Only the home page has an English equivalent (the international site's home); the other
+  // pages list the Greek self-reference alone.
+  const alternates = [`<link rel="alternate" hreflang="el" href="${canonical}">`];
+  if (page.url === '/') alternates.push(`<link rel="alternate" hreflang="en" href="${SITE.internationalSite}/">`);
   return `<!doctype html>
 <html lang="el" class="no-js${SITE.showDrafts ? ' show-drafts' : ''}">
 <head>
@@ -118,8 +127,7 @@ function doc(page, main, shared, assets) {
 <meta name="description" content="${esc(desc)}">
 ${noindex ? '<meta name="robots" content="noindex, follow">' : ''}
 <link rel="canonical" href="${canonical}">
-<link rel="alternate" hreflang="el" href="${canonical}">
-<link rel="alternate" hreflang="en" href="${SITE.internationalSite}/">
+${alternates.join('\n')}
 <meta name="theme-color" content="#000000">
 <meta name="color-scheme" content="dark">
 <meta property="og:type" content="website">
@@ -133,20 +141,23 @@ ${noindex ? '<meta name="robots" content="noindex, follow">' : ''}
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.png" type="image/png" sizes="192x192">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="preload" href="${assets.font}" as="font" type="font/woff2" crossorigin>
+<link rel="manifest" href="/site.webmanifest">
+${assets.fonts.map((f) => `<link rel="preload" href="${f}" as="font" type="font/woff2" crossorigin>`).join('\n')}
 <link rel="stylesheet" href="${assets.css}">
+${glPreload?.length ? `<meta name="gl-preload" content="${glPreload.join(' ')}">` : ''}
 <script>${HEAD_SCRIPT}</script>
 <script type="module" src="${assets.js}"></script>
 <script type="application/ld+json">${jsonLd(page, page.faqs ?? [])}</script>
 </head>
 <body data-kind="${page.kind}">
 ${preloader()}
+${skipLink()}
+${cookieBanner(shared)}
 ${header(page)}
 <main id="main">
 ${main}
 </main>
 ${footer(shared, page)}
-${cookieBanner(shared)}
 <div class="cursor" aria-hidden="true"><span class="cursor__dot"></span><span class="cursor__ring"><span class="cursor__label"></span></span></div>
 <div class="curtain" aria-hidden="true"><span class="curtain__logo">GROW<i>.</i></span></div>
 <div class="grain" aria-hidden="true"></div>
@@ -158,7 +169,7 @@ ${cookieBanner(shared)}
 function renderPage(page, shared, assets) {
   page.kind = KIND(page.url);
   page.art = ARTS[page.url]; // illustration per page: lib/site.mjs
-  const ctx = { url: page.url, filters: [], form: (blocks) => form(shared, blocks) };
+  const ctx = { url: page.url, kind: page.kind, filters: [], form: (blocks) => form(shared, blocks) };
 
   // FAQ entries for structured data.
   page.faqs = [];
@@ -201,7 +212,25 @@ function renderPage(page, shared, assets) {
 
   const band = page.cta ?? { team: shared.bands[0], blog: shared.bands[1], legal: shared.bands[2] }[page.kind];
   parts.push(ctaBand(band, page, ctx));
-  return doc(page, parts.join('\n'), shared, assets);
+  const html = parts.join('\n');
+  checkLayout(page, html);
+  return doc(page, html, shared, assets);
+}
+
+// Layouts are chosen from the shape of the copy (lib/render.mjs). These are the blocks each page
+// kind is expected to end up with; a copy edit that loses one is reported, not shipped silently.
+const EXPECT = {
+  home: { 'card--result': 'case-study cards (Αποτελέσματα)', 'card--quote': 'testimonial cards (Τι λένε οι πελάτες μας)' },
+  service: { 'card--result': 'case-study cards (Αποτελέσματα…)', 'card--person': 'the person card (Ποιος…)', 'card--quote': 'testimonial cards (Τι λένε οι πελάτες μας)' },
+  solution: { 'card--result': 'the case-study card' },
+  case: { 'card--quote': 'the testimonial card (Τι είπε ο πελάτης)' },
+  company: { 'class="stat"': 'stat tiles (Η GROW σε αριθμούς)' },
+  team: { 'card--person': 'person cards (Τα πρόσωπα)' },
+};
+function checkLayout(page, html) {
+  for (const [needle, what] of Object.entries(EXPECT[page.kind] ?? {})) {
+    if (!html.includes(needle)) console.warn(`[layout] ${page.url}: expected ${what} but the copy no longer renders any. Check the section's shape (README, "Change the copy").`);
+  }
 }
 
 async function bundle() {
@@ -221,11 +250,33 @@ async function bundle() {
     metafile: true,
     legalComments: 'none',
   });
-  const outs = Object.keys(result.metafile.outputs).map((f) => '/' + path.relative(OUT, f).split(path.sep).join('/'));
+  const url = (f) => '/' + path.relative(OUT, f).split(path.sep).join('/');
+  const outs = Object.keys(result.metafile.outputs).map(url);
+  // Static import closure of a lazily imported module (its chunk + every chunk it imports).
+  const outputs = result.metafile.outputs;
+  const closure = (entry) => {
+    const start = Object.keys(outputs).find((k) => outputs[k].entryPoint === entry);
+    const seen = new Set();
+    const walk = (k) => {
+      if (!k || seen.has(k) || !outputs[k]) return;
+      seen.add(k);
+      for (const im of outputs[k].imports) if (im.kind === 'import-statement') walk(im.path);
+    };
+    walk(start);
+    return [...seen].map(url);
+  };
+  const gl = {};
+  for (const name of ['helix', 'bars', 'orb', 'panels', 'blocks', 'globe']) {
+    gl[name] = [...new Set([...closure('src/js/three/core.js'), ...closure(`src/js/three/scenes/${name}.js`)])];
+  }
+  // Preload the fonts every page paints above the fold: the Greek heading face (Manrope: Space
+  // Grotesk has no Greek), Space Grotesk for the Latin heading words, Inter for the Greek body.
+  const PRELOAD = ['manrope-greek', 'space-grotesk-latin', 'inter-greek', 'inter-latin'];
   return {
     js: outs.find((f) => /\/main-[^/]+\.js$/.test(f)),
     css: outs.find((f) => /\/style-[^/]+\.css$/.test(f)),
-    font: outs.find((f) => /space-grotesk-latin-wght-normal-[^/]+\.woff2$/.test(f)),
+    fonts: PRELOAD.map((name) => outs.find((f) => new RegExp(`/${name}-wght-normal-[^/]+\\.woff2$`).test(f))).filter(Boolean),
+    gl,
   };
 }
 
@@ -243,7 +294,8 @@ async function build() {
     if (!page.url) throw new Error(`Page "${page.name}" has no URL in its SEO table`);
     write(path.join(OUT, page.url, 'index.html'), renderPage(page, shared, assets));
   }
-  write(path.join(OUT, '404.html'), doc({ name: '404', meta: { 'Title tag': 'Η σελίδα δεν βρέθηκε – GROW Agency' }, kind: '404', url: null }, notFound(shared), shared, assets));
+  const notFoundMeta = { 'Title tag': 'Η σελίδα δεν βρέθηκε – GROW Agency', 'Meta description': shared.notFound._[0] ?? '' };
+  write(path.join(OUT, '404.html'), doc({ name: '404', meta: notFoundMeta, kind: '404', url: null }, notFound(shared), shared, assets));
 
   const today = new Date().toISOString().slice(0, 10);
   const indexable = pages.filter((p) => p.kind !== 'case');

@@ -46,6 +46,9 @@ export function detail(ctx) {
  *           canvas width, capped so the height stays under maxH of the canvas height
  *   text    right edge of the headline column on wide canvases (fraction of the width); the object
  *           is pushed right of it (and shrunk if it would leave the canvas)
+ *   hud     wide canvases: fit the object inside the hero's viewfinder (.hero__hud, measured on
+ *           resize) instead of the `desk` box: centred in it, its height this share of the frame's
+ *           height, never past the frame's right edge (falls back to `desk` when the frame is hidden)
  * Returns { wide, scale, x, y, distance } and stores it as ctx.frame (see shiftFrame()).
  */
 export function frame(ctx, w, h, opts = {}) {
@@ -74,16 +77,24 @@ export function frame(ctx, w, h, opts = {}) {
   let y;
   let scale;
   if (wide) {
-    const d = { x: 0.74, y: 0.5, size: 0.8, ...desk };
+    let d = { x: 0.74, y: 0.5, size: 0.8, ...desk };
+    let left = text;
+    let right = 0.99;
+    const box = opts.hud ? hudBox(ctx) : null;
+    if (box) {
+      d = { x: (box.l + box.r) / 2, y: (box.t + box.b) / 2, size: opts.hud * (box.b - box.t) };
+      left = Math.max(text, box.l);
+      right = box.r;
+    }
     scale = (d.size * visH) / (2 * ry);
     let half = (rx * scale) / visW; // half the object's width, as a fraction of the canvas width
-    // Fit between the text column and the right edge.
-    const room = (0.99 - text) / 2;
+    // Fit between the text column (or the frame's left edge) and the right edge.
+    const room = Math.max(0.05, (right - left) / 2);
     if (half > room) {
       scale *= room / half;
       half = room;
     }
-    x = clamp(d.x, text + half, 0.99 - half);
+    x = clamp(d.x, left + half, right - half);
     y = d.y;
   } else {
     const p = { x: 0.5, y: 0.3, size: 0.9, maxH: 0.5, ...phone };
@@ -96,6 +107,19 @@ export function frame(ctx, w, h, opts = {}) {
   ctx.frame = { wide, scale, x, y, distance, aspect, w, h, visH, visW, dx: 0, dy: 0 };
   camera.setViewOffset(w, h, w * (0.5 - x), h * (0.5 - y), w, h);
   return ctx.frame;
+}
+
+// The viewfinder frame (.hero__hud) as fractions of the canvas: { l, r, t, b }, or null when it is
+// not shown. Layout offsets (the frame's depth translate and the canvas's intro zoom are ignored).
+function hudBox(ctx) {
+  const hero = ctx.canvas.closest('[data-hero]');
+  const hud = hero?.querySelector(':scope > .hero__hud');
+  const cw = ctx.canvas.clientWidth;
+  const ch = ctx.canvas.clientHeight;
+  if (!hud || !hud.offsetWidth || !hud.offsetHeight || !cw || !ch) return null;
+  const l = hud.offsetLeft / cw;
+  const t = hud.offsetTop / ch;
+  return { l, r: l + hud.offsetWidth / cw, t, b: t + hud.offsetHeight / ch };
 }
 
 /**

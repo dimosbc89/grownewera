@@ -49,7 +49,9 @@ function initFaq() {
           height: 'auto', opacity: 1, duration: 0.75, ease: EASE.out, clearProps: 'all',
           onComplete: () => { d.classList.remove('is-opening'); refresh(); },
         });
-        gsap.fromTo(kids, { y: 14, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7, ease: EASE.out, stagger: 0.06, delay: 0.1, clearProps: 'transform,opacity' });
+        // Ends on an explicit opacity: 1 (only the transform is cleared), so no stylesheet
+        // pre-reveal state can hide the answer once it is open.
+        gsap.fromTo(kids, { y: 14, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7, ease: EASE.out, stagger: 0.06, delay: 0.1, clearProps: 'transform' });
       }
     });
   }

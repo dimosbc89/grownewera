@@ -9,8 +9,10 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { motion, headerH, $$ } from './util.js';
 
 gsap.registerPlugin(ScrollTrigger);
-// Mobile browsers resize the viewport as their toolbars show/hide: do not refresh on that.
-ScrollTrigger.config({ ignoreMobileResize: true });
+// Mobile browsers resize the viewport as their toolbars show/hide: do not refresh on that. Page
+// load is handled by settle() (one debounced refresh), so ScrollTrigger's own DOMContentLoaded /
+// load refreshes would only repeat it.
+ScrollTrigger.config({ ignoreMobileResize: true, autoRefreshEvents: 'visibilitychange,resize' });
 
 export let lenis = null;
 
@@ -33,12 +35,28 @@ const resolve = (target) => {
   try { return document.querySelector(target); } catch { return null; }
 };
 
+// Scrolls so the target clears the fixed header. A target with its own scroll-margin-top (the
+// form, legal headings) keeps that margin (Lenis and the browser both apply it); others get the
+// header height + 16px.
 export function scrollTo(target, opts = {}) {
   const el = resolve(target);
   if (!el && typeof target !== 'number') return;
-  if (lenis) lenis.scrollTo(el ?? target, { offset: -headerH() - 16, duration: 1.2, ...opts });
-  else if (el) el.scrollIntoView({ behavior: motion ? 'smooth' : 'auto' });
+  const margin = el ? parseFloat(getComputedStyle(el).scrollMarginTop) || 0 : 0;
+  const offset = margin ? 0 : -headerH() - 16;
+  if (lenis) lenis.scrollTo(el ?? target, { offset, duration: 1.2, ...opts });
+  else if (el) window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + scrollY - margin + offset), behavior: motion ? 'smooth' : 'auto' });
   else window.scrollTo(0, target);
+}
+
+// Same-page anchors (skip link, "#form"): scroll there and move the keyboard focus with it, so the
+// next Tab continues from the target, as a native anchor jump would.
+export function jumpTo(hash) {
+  const el = resolve(hash);
+  if (!el) return false;
+  scrollTo(el);
+  if (!el.matches('a[href], button, input, select, textarea, summary, [tabindex]')) el.setAttribute('tabindex', '-1');
+  el.focus({ preventScroll: true });
+  return true;
 }
 
 let queued = 0;
@@ -68,9 +86,10 @@ export function settle() {
   ScrollTrigger.sort();
   ScrollTrigger.refresh();
   if (location.hash && location.hash.length > 1) setTimeout(() => scrollTo(location.hash, { force: true }), 400);
-  document.fonts?.ready.then(() => refresh());
+  // Late fonts, the load event and images coalesce into one idle-time refresh.
+  document.fonts?.ready.then(() => refreshSoon());
   document.fonts?.addEventListener?.('loadingdone', () => refreshSoon());
-  addEventListener('load', () => refresh(), { once: true });
+  addEventListener('load', () => refreshSoon(), { once: true });
   for (const img of document.images) if (!img.complete) img.addEventListener('load', () => refreshSoon(), { once: true });
   watchCanvases();
   watchHeight();

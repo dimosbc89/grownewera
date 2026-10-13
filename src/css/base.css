@@ -24,6 +24,10 @@ button { cursor: pointer; }
 ul, ol { list-style: none; }
 ::selection { background: var(--lime); color: var(--black); }
 :focus-visible { outline: 2px solid var(--lime); outline-offset: 3px; }
+/* Inside lime surfaces (CTA band, editorial note) the ring turns black: lime on lime is invisible. */
+:is(.cta, .draft-note) :focus-visible { outline-color: var(--black); }
+/* Targets focused by a same-page jump (skip link -> main, #form): no ring around a whole region. */
+[tabindex='-1']:focus { outline: none; }
 h1, h2, h3, .display {
   font-family: var(--font-display);
   font-weight: 700;
@@ -58,12 +62,13 @@ mark.slot { background: none; color: inherit; }
   letter-spacing: 0;
   text-transform: none;
 }
+/* --note-h: the note's height (main.js measures it; 40px is one line), read by the hero below it. */
+:root { --note-h: 40px; }
 .draft-note {
   position: relative; z-index: 3; margin-top: var(--header-h);
   padding: 10px var(--gutter); background: var(--lime); color: var(--black);
   font-family: var(--font-mono); font-size: var(--fs-mono); letter-spacing: 0.02em;
 }
-.draft-note + .hero { margin-top: 0; }
 .draft-note span { font-weight: 800; text-transform: uppercase; margin-right: 1ch; }
 .draft-note mark.slot { color: var(--black) !important; outline-color: var(--black) !important; background: none !important; }
 

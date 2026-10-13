@@ -9,15 +9,27 @@ const run = (name, fn) => {
   try { fn(); return true; } catch (e) { console.warn(`[grow] ${name} failed`, e); return false; }
 };
 
-// One boot per document, even if the bundle is evaluated twice.
+// The editorial note (drafts only) sits above the hero, which reads its height (--note-h) to fit
+// its first screen under it.
+function noteHeight() {
+  const note = document.querySelector('.draft-note');
+  if (!note) return;
+  const set = () => root.style.setProperty('--note-h', `${note.offsetHeight}px`);
+  set();
+  if ('ResizeObserver' in window) new ResizeObserver(set).observe(note);
+}
+
+// One boot per document, even if the bundle is evaluated twice. WebGL first: it only starts its
+// downloads here, and they should not wait for the motion layer's setup.
 if (!window.__growBooted) {
   window.__growBooted = true;
+  run('note', noteHeight);
+  run('three', initThree);
   if (!run('motion', initMotion)) {
     // Never leave content in its hidden pre-reveal state.
     root.classList.remove('motion', 'curtain-in', 'is-loading');
     root.classList.add('no-motion', 'motion-failed');
   }
-  run('three', initThree);
   run('form', () => initForm(document.querySelector('[data-form]')));
   run('cookies', initCookies);
 }

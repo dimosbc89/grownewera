@@ -23,9 +23,13 @@ export function initHeader() {
     end: 'max',
     onUpdate: (self) => {
       if (bar) bar.style.transform = `scaleX(${self.progress.toFixed(4)})`;
-      setState(self.scroll(), self.direction);
+      // A refresh measures with the page scrolled to the top: that is not where the visitor is.
+      if (!ScrollTrigger.isRefreshing) setState(self.scroll(), self.direction);
     },
-    onRefresh: (self) => bar && (bar.style.transform = `scaleX(${self.progress.toFixed(4)})`),
+    onRefresh: (self) => {
+      if (bar) bar.style.transform = `scaleX(${self.progress.toFixed(4)})`;
+      setState(window.scrollY, 0);
+    },
   });
   setState(window.scrollY, 0);
 
@@ -60,10 +64,14 @@ export function initHeader() {
   // Mobile menu
   const mToggle = $('.menu-toggle');
   const mnav = $('#mnav');
+  // While the full-screen menu is open the page behind it is inert: Tab stays in the header + menu
+  // instead of landing on links hidden under the overlay.
+  const behind = () => $$('body > :is(main, .site-footer, .skip, [data-cookie])');
   const setMobile = (on) => {
     if (!mToggle || !mnav) return;
     mToggle.setAttribute('aria-expanded', String(on));
     mToggle.querySelector('.menu-toggle__label').textContent = on ? 'Κλείσιμο' : 'Μενού';
+    behind().forEach((el) => el.toggleAttribute('inert', on));
     if (on) {
       mnav.hidden = false;
       requestAnimationFrame(() => mnav.classList.add('is-open'));
@@ -77,6 +85,11 @@ export function initHeader() {
     }
   };
   mToggle?.addEventListener('click', () => setMobile(mToggle.getAttribute('aria-expanded') !== 'true'));
+  // A link in the menu closes it first (before the page transition / same-page jump handles the
+  // click on the document), so a jump on this page is not blocked by the scroll lock.
+  mnav?.addEventListener('click', (e) => {
+    if (e.target instanceof Element && e.target.closest('a[href]') && mToggle?.getAttribute('aria-expanded') === 'true') setMobile(false);
+  });
 
   addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;

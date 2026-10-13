@@ -2,7 +2,9 @@
 // EffectComposer, so every pass is ours to tune. Loaded on demand by core.js; never in the main
 // bundle.
 //
-//   1. scene -> HDR target (HalfFloat, WebGL2 MSAA x4): crisp edges, highlights above 1.0 survive
+//   1. scene -> HDR target (HalfFloat, WebGL2 MSAA: x4 at a pixel ratio under 1.5, x2 at 1.5, where
+//      the extra pixels already smooth the edges; core.js caps this tier's ratio at 1.5): crisp
+//      edges, highlights above 1.0 survive. A tier drop lowers the samples (mid x2, low none).
 //   2. bloom: prefilter (soft-knee threshold on the brightest channel, weighted by saturation so
 //      the acid-lime accents and emissive bits glow while lit white/grey surfaces barely do;
 //      Karis average against fireflies) -> 13-tap downsample chain -> tent upsample chain
@@ -114,12 +116,13 @@ function target(w, h, opts = {}) {
  * @param {object} o
  *   renderer, scene, camera; width/height in CSS px (the renderer's pixel ratio is applied)
  *   bloom    initial bloom settings (BLOOM defaults); `params` may be swapped per frame in render()
- *   effects  false: MSAA + tone mapping only (an automatic tier drop keeps edges smooth this way,
- *            since a post-processed stage's context is created without its own antialiasing)
+ *   tier     'high' (bloom, grain, aberration; MSAA by pixel ratio) | 'mid' (MSAA x2 + tone mapping
+ *            only) | 'low' (no MSAA): a tier drop sheds the effects and the multisampling, since a
+ *            post-processed stage's context is created without its own antialiasing
  */
-export function createPost({ renderer, scene, camera, width, height, effects = true }) {
-  const samples = Math.min(4, renderer.capabilities.maxSamples || 4);
-  const sceneRT = target(1, 1, { samples, depthBuffer: true });
+export function createPost({ renderer, scene, camera, width, height, tier = 'high' }) {
+  const maxSamples = renderer.capabilities.maxSamples || 4;
+  const sceneRT = target(1, 1, { samples: 0, depthBuffer: true });
   const downs = [];
   const ups = [];
   const tri = new THREE.BufferGeometry();
@@ -147,12 +150,25 @@ export function createPost({ renderer, scene, camera, width, height, effects = t
   let H = 1;
   let ratio = renderer.getPixelRatio();
   let fade = 0; // effects ease in over ~1.2s, together with the canvas fade-in
-  let on = effects;
+  let level = tier;
+  let on = level === 'high';
   const merged = { ...BLOOM };
+
+  // MSAA samples for the scene target. Changing them re-allocates the target (three.js rebuilds a
+  // disposed render target on its next use).
+  function samples() {
+    const want = level === 'low' ? 0 : level === 'mid' || ratio >= 1.5 ? 2 : 4;
+    const n = Math.min(want, maxSamples);
+    if (sceneRT.samples !== n) {
+      sceneRT.samples = n;
+      sceneRT.dispose();
+    }
+  }
 
   function layout() {
     const w = Math.max(1, Math.round(W * ratio));
     const h = Math.max(1, Math.round(H * ratio));
+    samples();
     sceneRT.setSize(w, h);
     // Mip chain from half resolution down to ~12px.
     let n = 0;
@@ -212,7 +228,8 @@ export function createPost({ renderer, scene, camera, width, height, effects = t
   layout();
   return {
     get effects() { return on; },
-    setEffects(v) { on = !!v; },
+    get samples() { return sceneRT.samples; },
+    setTier(q) { level = q; on = q === 'high'; samples(); },
     setSize(w, h) { W = w; H = h; layout(); },
     setPixelRatio(r) { ratio = r; layout(); },
     /**

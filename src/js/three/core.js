@@ -12,8 +12,10 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { makePalette, disposeTree, clamp01 } from './util.js';
 
+// DPR caps per tier. `high` renders through post.js's MSAA half-float target, whose cost grows with
+// the pixel count, so it is capped like `mid` (the target then uses fewer samples, see post.js).
 export const TIERS = {
-  high: { dpr: 1.75, post: true },
+  high: { dpr: 1.5, post: true },
   mid: { dpr: 1.5, post: false },
   low: { dpr: 1, post: false },
 };
@@ -21,6 +23,9 @@ const ORDER = ['high', 'mid', 'low'];
 const SLOW_MS = 24; // average frame time that triggers a tier drop…
 const SLOW_WINDOW = 2; // …when sustained for this many seconds
 const LOST_GRACE = 4000; // ms to wait for a lost context to come back before hiding the canvas
+// GPUs that start below `high` (unless the tier is forced with ?gl=): software rasterisers and
+// integrated graphics (not Intel Arc), read from the context's unmasked renderer string.
+const WEAK_GPU = /SwiftShader|llvmpipe|softpipe|Software|Basic Render|Intel(?!.*\bArc\b)/i;
 // Smoothing rates (per second; frame-rate independent): x += (target - x) * damp(rate, dt).
 const SCROLL_RATE = 7.5;
 const POINTER_RATE = 3;
@@ -107,6 +112,16 @@ export async function createStage(canvas, opts = {}) {
     preserveDrawingBuffer: false, powerPreference: 'high-performance',
   });
   if (!context) throw new Error('WebGL2 unavailable'); // three/index.js falls back to the static stage
+  // A weak GPU starts at `mid` (no bloom/grain, MSAA x2 in the post target this context already
+  // relies on, since it was created without antialiasing).
+  if (tier === 'high' && autoDrop) {
+    let gpu = '';
+    try {
+      const info = context.getExtension('WEBGL_debug_renderer_info');
+      gpu = String(context.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : context.RENDERER) || '');
+    } catch {}
+    if (WEAK_GPU.test(gpu)) tier = 'mid';
+  }
   const renderer = new THREE.WebGLRenderer({ canvas, context, antialias: !wantPost, alpha: true, powerPreference: 'high-performance' });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -136,8 +151,10 @@ export async function createStage(canvas, opts = {}) {
   let listening = false;
   let lost = false;
 
+  // No `THREE` here: scenes import three themselves (passing the namespace around as a value
+  // would keep every export of three in the bundle).
   const ctx = {
-    THREE, scene, camera, rig, renderer, canvas, small, palette, motion, input, clock,
+    scene, camera, rig, renderer, canvas, small, palette, motion, input, clock,
     quality: tier,
     invalidate: () => invalidate(),
   };
@@ -341,9 +358,9 @@ export async function createStage(canvas, opts = {}) {
     tier = q;
     ctx.quality = q;
     canvas.dataset.quality = q;
-    // A post-processed context has no antialiasing of its own: keep its MSAA target and tone
-    // mapping, drop bloom/grain/aberration.
-    postFx?.setEffects(TIERS[q].post);
+    // A post-processed context has no antialiasing of its own: it keeps the post target and tone
+    // mapping, and sheds bloom/grain/aberration and then the multisampling (post.js setTier).
+    postFx?.setTier(q);
     applyDpr();
     resize();
     world?.setQuality?.(q, ctx);
@@ -356,7 +373,7 @@ export async function createStage(canvas, opts = {}) {
   const makeEnv = (fresh = false) => {
     if (!env) return;
     if (!fresh) scene.environment?.dispose();
-    scene.environment = typeof env === 'function' ? env(renderer, THREE) : roomEnvironment(renderer);
+    scene.environment = typeof env === 'function' ? env(renderer) : roomEnvironment(renderer);
   };
 
   // ---------- WebGL context loss ----------
@@ -446,7 +463,7 @@ export async function createStage(canvas, opts = {}) {
       await idle();
       if (!alive()) return dispose(), null;
       if (mod?.supportsPost(renderer)) {
-        postFx = mod.createPost({ renderer, scene, camera, width: W || 1, height: H || 1, effects: TIERS[tier].post });
+        postFx = mod.createPost({ renderer, scene, camera, width: W || 1, height: H || 1, tier });
         applyDpr();
       }
     }

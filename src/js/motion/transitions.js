@@ -7,7 +7,7 @@
 // them. Same-page hash links scroll smoothly instead.
 import { gsap } from 'gsap';
 import { root, motion, finePointer, $, $$, makeColumns } from './util.js';
-import { scrollTo } from './smooth.js';
+import { jumpTo } from './smooth.js';
 import { EASE } from './ease.js';
 
 const LABEL_KEY = 'grow-curtain-label';
@@ -85,8 +85,13 @@ export function initTransitions() {
       tl.to(f.cols, { scaleY: 0, duration: 0.85, ease: EASE.lift, stagger: 0.065 }, saved?.name ? 0.28 : 0.05);
     }
   }
+  let leaving = false;
+  let leaveTimer = 0;
   addEventListener('pageshow', (e) => {
     if (!e.persisted) return;
+    // Back from the next page (bfcache): the page is live again, links included.
+    leaving = false;
+    clearTimeout(leaveTimer);
     curtain.classList.remove('is-on', 'has-cols');
     root.classList.remove('curtain-in');
     gsap.set(curtain, { clearProps: 'all' });
@@ -122,21 +127,22 @@ export function initTransitions() {
     });
   }
 
-  let leaving = false;
   document.addEventListener('click', (e) => {
     const a = e.target instanceof Element && e.target.closest('a[href]');
     if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     const url = internal(a);
     if (!url) return;
     if (url.pathname === location.pathname && url.hash) {
+      // Smooth scroll instead of the jump, focus moved to the target (skip link, #form).
+      if (!jumpTo(url.hash)) return;
       e.preventDefault();
-      scrollTo(url.hash);
       history.replaceState(null, '', url.hash);
       return;
     }
     if (url.pathname === location.pathname) return;
-    e.preventDefault();
+    // Already leaving (a second click): let the browser navigate natively rather than swallow it.
     if (leaving) return;
+    e.preventDefault();
     leaving = true;
     prefetch(url);
     const label = { name: nameFor(url, a), path: norm(url.pathname) };
@@ -155,6 +161,7 @@ export function initTransitions() {
       .to([f.path, f.name], { yPercent: 0, duration: 0.6, ease: EASE.expo, stagger: 0.05 }, 0.32)
       .call(go, null, 0.84);
     // Never strand the visitor under the curtain (a blocked navigation, a slow tab).
-    setTimeout(() => { leaving = false; }, 4000);
+    clearTimeout(leaveTimer);
+    leaveTimer = setTimeout(() => { leaving = false; }, 4000);
   });
 }

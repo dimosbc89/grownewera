@@ -9,6 +9,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { motion, touch, busy, $, $$, headerH, pad, clamp } from './util.js';
 import { EASE } from './ease.js';
 import { skew } from './velocity.js';
+import { lenis, refresh } from './smooth.js';
 
 const FINE = '(hover: hover) and (pointer: fine)';
 const COARSE = '(hover: none), (pointer: coarse)';
@@ -90,7 +91,25 @@ function initHScroll() {
       }
       const bg = $('.sec-bgnum', track);
       if (bg) gsap.to(bg, { xPercent: 40, ease: 'none', scrollTrigger: { trigger: bg.parentElement, containerAnimation: tween, start: 'left left', end: 'right left', scrub: true } });
-      undo.push(() => { ui.remove(); hint?.classList.remove('is-gone'); });
+      // Keyboard: focus can not move a pinned, scrubbed track, so a focused link off to the right
+      // would stay out of sight. Scroll the page to where that card sits mid-screen instead (and
+      // undo any sideways scroll the browser gave a clipping ancestor to reveal it).
+      const onFocus = (e) => {
+        const st = tween.scrollTrigger;
+        const item = e.target instanceof Element && e.target.closest('.card--panel, .hscroll__outro, .hscroll__intro');
+        if (!st || !item) return;
+        for (let el = e.target.parentElement; el && el !== document.body; el = el.parentElement) if (el.scrollLeft) el.scrollLeft = 0;
+        const d = Math.max(1, dist());
+        const p = clamp((item.offsetLeft + item.offsetWidth / 2 - innerWidth / 2) / d, 0, 1);
+        const y = Math.round(st.start + p * (st.end - st.start));
+        if (Math.abs(scrollY - y) < 2) return;
+        if (lenis) lenis.scrollTo(y, { immediate: true, force: true });
+        else window.scrollTo(0, y);
+        ScrollTrigger.update();
+        st.getTween?.()?.progress(1); // land now, not after the scrub lag
+      };
+      hs.addEventListener('focusin', onFocus);
+      undo.push(() => { ui.remove(); hint?.classList.remove('is-gone'); hs.removeEventListener('focusin', onFocus); });
     }
     return () => undo.forEach((f) => f());
   });
@@ -198,114 +217,140 @@ function initStories() {
 // ---------- Sticky stacking cards ----------
 const STACK_SCALE = 0.92; // a covered card shrinks to this (from its top edge)
 const STACK_TILT = -5; // ...and tilts back (deg, about its top edge)
+// A grid only stacks when its tallest card fits the screen below the header: a taller card would
+// have to stick above the top of the screen (hiding its number and title while it is the one being
+// read), so such a grid stays a plain list of cards (phones with long cards). Decided at load and
+// again when the width changes (on touch screens the height changes with the browser toolbars).
 function initStacks() {
-  const grids = $$('[data-stack]');
-  if (!grids.length) return;
-  const mm = gsap.matchMedia();
-  mm.add('(prefers-reduced-motion: no-preference)', () => {
-    const cleanups = [];
-    for (const grid of grids) {
-      const cards = [...grid.children];
-      if (cards.length < 2) continue;
-      grid.classList.add('is-stacked');
-      const shades = cards.map((card) => {
-        const s = document.createElement('i');
-        s.className = 'stack__shade';
-        s.setAttribute('aria-hidden', 'true');
-        card.append(s);
-        return s;
-      });
-      // Sticky offsets: fan out a little, and let cards taller than the viewport scroll fully
-      // into view before they stick (otherwise their bottom would never be visible).
-      // Cuts: a card taller than the one that settles on it would show its lower body below it
-      // (and through the gaps between the later cards), so as the next card settles, the covered
-      // card's bottom is clipped back to the next card's settled bottom. Computed from the last
-      // card back, since each card's visible bottom depends on its own cut. (The tilt-back only
-      // shrinks a covered card further, so its cut edge stays hidden.)
-      // Holds: at the end of the grid a sticky card leaves when its bottom meets the grid's
-      // bottom, so a tall card would leave before the cards on top of it and slide its body out
-      // above the stack. It is held in place (translated down by exactly the distance it is
-      // pushed up) until the card on top of it leaves, so the stack departs top card first.
-      const tops = [];
-      const heights = [];
-      const cuts = [];
-      const holds = [];
-      let padB = 0;
-      const setTops = () => {
-        const base = headerH() + 24;
-        cards.forEach((c, i) => { heights[i] = c.offsetHeight; }); // read everything, then write
-        padB = parseFloat(getComputedStyle(grid).paddingBottom) || 0;
-        cards.forEach((c, i) => {
-          tops[i] = Math.round(Math.min(base + i * 14, innerHeight - heights[i] - 24));
-          c.style.top = `${tops[i]}px`;
-        });
-        let below = Infinity; // settled visible bottom (viewport px) of the card after i
-        let leave = Infinity; // grid bottom (viewport px) at which the card after i leaves
-        for (let i = cards.length - 1; i >= 0; i--) {
-          const keep = Math.min(heights[i], (below - tops[i]) / STACK_SCALE);
-          cuts[i] = Math.max(0, Math.floor(heights[i] - keep));
-          below = tops[i] + (i === cards.length - 1 ? heights[i] : STACK_SCALE * keep);
-          const natural = tops[i] + heights[i];
-          holds[i] = Math.max(0, natural - leave);
-          leave = Math.min(natural, leave);
-        }
-      };
-      setTops();
-      ScrollTrigger.addEventListener('refreshInit', setTops);
-      // Negative insets keep the card's upward shadow; only the bottom edge is ever clipped.
-      const clip = (px) => `inset(-120px -120px ${px}px -120px)`;
-      const tilt = touch ? STACK_TILT * 0.5 : STACK_TILT;
-      cards.forEach((card, i) => {
-        const next = cards[i + 1];
-        if (!next) return;
-        const st = { trigger: next, start: 'top bottom', end: () => `top ${tops[i + 1] ?? 0}px`, scrub: true };
-        gsap.to(card, { scale: STACK_SCALE, rotationX: tilt, transformPerspective: 1600, transformOrigin: '50% 0%', ease: 'none', scrollTrigger: st });
-        gsap.to(shades[i], { opacity: 0.62, ease: 'none', scrollTrigger: { ...st } });
-        // Two or more cards behind: darker still, so the fanned edges read as depth.
-        const after = cards[i + 2];
-        if (after) {
-          gsap.fromTo(shades[i], { opacity: 0.62 }, {
-            opacity: 0.86, ease: 'none', immediateRender: false,
-            scrollTrigger: { trigger: after, start: 'top bottom', end: () => `top ${tops[i + 2] ?? 0}px`, scrub: true },
-          });
-        }
-        // The cut starts once the next card's top has passed this card's bottom, so the receding
-        // edge always stays at or below the incoming card's top edge.
-        gsap.fromTo(card, { clipPath: clip(0) }, {
-          clipPath: () => clip(cuts[i]),
-          ease: 'none',
-          immediateRender: false,
-          scrollTrigger: {
-            trigger: next,
-            start: () => `top ${Math.round(Math.min(innerHeight, tops[i] + STACK_SCALE * heights[i]))}px`,
-            end: () => `top ${tops[i + 1] ?? 0}px`,
-            scrub: true,
-            invalidateOnRefresh: true,
-          },
-        });
-        // yPercent, not y: the grid's [data-stagger] reveal tweens `y` on the same cards.
-        gsap.fromTo(card, { yPercent: 0 }, {
-          yPercent: () => (holds[i] / (heights[i] || 1)) * 100,
-          ease: 'none',
-          immediateRender: false,
-          scrollTrigger: {
-            trigger: grid,
-            start: () => `bottom ${tops[i] + heights[i] + padB}px`,
-            end: () => `bottom ${tops[i] + heights[i] + padB - Math.max(1, holds[i])}px`,
-            scrub: true,
-            invalidateOnRefresh: true,
-          },
-        });
-      });
-      cleanups.push(() => {
-        ScrollTrigger.removeEventListener('refreshInit', setTops);
-        grid.classList.remove('is-stacked');
-        shades.forEach((s) => s.remove());
-        cards.forEach((c) => (c.style.top = ''));
+  for (const grid of $$('[data-stack]')) {
+    const cards = [...grid.children];
+    if (cards.length < 2 || grid._growStack) continue;
+    grid._growStack = true; // (_growInit is the reveal's flag on the same grid)
+    let mm = null;
+    let on = null;
+    const arm = () => {
+      const fits = Math.max(...cards.map((c) => c.offsetHeight)) + headerH() + 24 <= innerHeight;
+      if (fits === on) return false;
+      on = fits;
+      mm?.revert();
+      mm = null;
+      if (fits) {
+        mm = gsap.matchMedia();
+        mm.add('(prefers-reduced-motion: no-preference)', () => stack(grid, cards));
+      }
+      return true;
+    };
+    arm();
+    let w = innerWidth;
+    let t = 0;
+    addEventListener('resize', () => {
+      clearTimeout(t);
+      t = setTimeout(() => {
+        if (touch && innerWidth === w) return;
+        w = innerWidth;
+        if (arm()) refresh();
+      }, 300);
+    });
+  }
+}
+
+function stack(grid, cards) {
+  grid.classList.add('is-stacked');
+  const shades = cards.map((card) => {
+    const s = document.createElement('i');
+    s.className = 'stack__shade';
+    s.setAttribute('aria-hidden', 'true');
+    card.append(s);
+    return s;
+  });
+  // Sticky offsets: fan out a little, and let cards taller than the viewport scroll fully
+  // into view before they stick (otherwise their bottom would never be visible).
+  // Cuts: a card taller than the one that settles on it would show its lower body below it
+  // (and through the gaps between the later cards), so as the next card settles, the covered
+  // card's bottom is clipped back to the next card's settled bottom. Computed from the last
+  // card back, since each card's visible bottom depends on its own cut. (The tilt-back only
+  // shrinks a covered card further, so its cut edge stays hidden.)
+  // Holds: at the end of the grid a sticky card leaves when its bottom meets the grid's
+  // bottom, so a tall card would leave before the cards on top of it and slide its body out
+  // above the stack. It is held in place (translated down by exactly the distance it is
+  // pushed up) until the card on top of it leaves, so the stack departs top card first.
+  const tops = [];
+  const heights = [];
+  const cuts = [];
+  const holds = [];
+  let padB = 0;
+  const setTops = () => {
+    const base = headerH() + 24;
+    cards.forEach((c, i) => { heights[i] = c.offsetHeight; }); // read everything, then write
+    padB = parseFloat(getComputedStyle(grid).paddingBottom) || 0;
+    cards.forEach((c, i) => {
+      tops[i] = Math.round(Math.min(base + i * 14, innerHeight - heights[i] - 24));
+      c.style.top = `${tops[i]}px`;
+    });
+    let below = Infinity; // settled visible bottom (viewport px) of the card after i
+    let leave = Infinity; // grid bottom (viewport px) at which the card after i leaves
+    for (let i = cards.length - 1; i >= 0; i--) {
+      const keep = Math.min(heights[i], (below - tops[i]) / STACK_SCALE);
+      cuts[i] = Math.max(0, Math.floor(heights[i] - keep));
+      below = tops[i] + (i === cards.length - 1 ? heights[i] : STACK_SCALE * keep);
+      const natural = tops[i] + heights[i];
+      holds[i] = Math.max(0, natural - leave);
+      leave = Math.min(natural, leave);
+    }
+  };
+  setTops();
+  ScrollTrigger.addEventListener('refreshInit', setTops);
+  // Negative insets keep the card's upward shadow; only the bottom edge is ever clipped.
+  const clip = (px) => `inset(-120px -120px ${px}px -120px)`;
+  const tilt = touch ? STACK_TILT * 0.5 : STACK_TILT;
+  cards.forEach((card, i) => {
+    const next = cards[i + 1];
+    if (!next) return;
+    const st = { trigger: next, start: 'top bottom', end: () => `top ${tops[i + 1] ?? 0}px`, scrub: true };
+    gsap.to(card, { scale: STACK_SCALE, rotationX: tilt, transformPerspective: 1600, transformOrigin: '50% 0%', ease: 'none', scrollTrigger: st });
+    gsap.to(shades[i], { opacity: 0.62, ease: 'none', scrollTrigger: { ...st } });
+    // Two or more cards behind: darker still, so the fanned edges read as depth.
+    const after = cards[i + 2];
+    if (after) {
+      gsap.fromTo(shades[i], { opacity: 0.62 }, {
+        opacity: 0.86, ease: 'none', immediateRender: false,
+        scrollTrigger: { trigger: after, start: 'top bottom', end: () => `top ${tops[i + 2] ?? 0}px`, scrub: true },
       });
     }
-    return () => cleanups.forEach((f) => f());
+    // The cut starts once the next card's top has passed this card's bottom, so the receding
+    // edge always stays at or below the incoming card's top edge.
+    gsap.fromTo(card, { clipPath: clip(0) }, {
+      clipPath: () => clip(cuts[i]),
+      ease: 'none',
+      immediateRender: false,
+      scrollTrigger: {
+        trigger: next,
+        start: () => `top ${Math.round(Math.min(innerHeight, tops[i] + STACK_SCALE * heights[i]))}px`,
+        end: () => `top ${tops[i + 1] ?? 0}px`,
+        scrub: true,
+        invalidateOnRefresh: true,
+      },
+    });
+    // yPercent, not y: the grid's [data-stagger] reveal tweens `y` on the same cards.
+    gsap.fromTo(card, { yPercent: 0 }, {
+      yPercent: () => (holds[i] / (heights[i] || 1)) * 100,
+      ease: 'none',
+      immediateRender: false,
+      scrollTrigger: {
+        trigger: grid,
+        start: () => `bottom ${tops[i] + heights[i] + padB}px`,
+        end: () => `bottom ${tops[i] + heights[i] + padB - Math.max(1, holds[i])}px`,
+        scrub: true,
+        invalidateOnRefresh: true,
+      },
+    });
   });
+  return () => {
+    ScrollTrigger.removeEventListener('refreshInit', setTops);
+    grid.classList.remove('is-stacked');
+    shades.forEach((s) => s.remove());
+    cards.forEach((c) => (c.style.top = ''));
+  };
 }
 
 // ---------- Pinned statements ----------

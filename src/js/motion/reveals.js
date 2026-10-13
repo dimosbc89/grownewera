@@ -10,7 +10,7 @@
 //                           lean with the scroll velocity
 //   [data-clip]             brutalist block wipe: a lime block sweeps in, then off, uncovering it
 //   [data-cta]              the band grows out of a small lime square (clip-path, scrubbed), then
-//                           its copy rises
+//                           its copy rises; .is-open once it is mostly open (the 3D wordmark shows)
 //   [data-footer-word]      the footer wordmark rises letter by letter out of the floor (scrubbed)
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -229,9 +229,12 @@ function initCta() {
       const side = (W - s) / 2;
       return `inset(${top}px ${side.toFixed(1)}px ${(H - top - s).toFixed(1)}px ${side.toFixed(1)}px)`;
     };
+    // .is-open once the square has grown into most of the band: the 3D wordmark (three.css) only
+    // shows from then on, so its letters never drop through the small square.
     gsap.fromTo(cta, { clipPath: square }, {
       clipPath: 'inset(0px 0px 0px 0px)', ease: 'power2.inOut',
       scrollTrigger: { trigger: cta, start: 'top 86%', end: 'top 20%', scrub: 0.6, invalidateOnRefresh: true },
+      onUpdate() { cta.classList.toggle('is-open', this.progress() > 0.6); },
     });
     const bg = $('.cta__bg span', cta);
     if (bg) skew(bg, { k: 2, max: 6, axis: 'skewX' });
@@ -296,4 +299,9 @@ function initIllustrations() {
     }
   }, { threshold: [0, 0.1, 0.2, 0.3] });
   ills.forEach((el) => illObserver.observe(el));
+  // A fast scroll can carry one from below the screen to above it between two observations (no
+  // intersection change is reported then): when the scroll settles, show any that were passed.
+  ScrollTrigger.addEventListener('scrollEnd', () => {
+    for (const el of ills) if (!el.classList.contains('is-in') && el.getBoundingClientRect().top < innerHeight * 0.7) showIll(el);
+  });
 }

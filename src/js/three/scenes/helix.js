@@ -5,6 +5,7 @@
 //   pointer blocks near the cursor slide outward along their length and light up lime (trail fades)
 //   scroll  the spiral uncoils from the base into an ascending bar chart (stacks of the same
 //           blocks, the lime tip on the tallest bar) while the camera rises; a lime trend line draws
+import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import {
   clamp, lerp, smooth, easeOutCubic, easeInOutCubic, rng, detail, frame, shiftFrame,
@@ -12,7 +13,7 @@ import {
 } from './_shared.js';
 
 export default function build(ctx) {
-  const { THREE, rig, camera, renderer, palette, motion } = ctx;
+  const { rig, camera, renderer, palette, motion } = ctx;
   const lod = detail(ctx);
   const rand = rng(7);
 
@@ -165,6 +166,7 @@ export default function build(ctx) {
     frame(ctx, w, h, {
       extent: [1.85, 2.3],
       desk: { x: 0.75, y: 0.52, size: 0.74 },
+      hud: 0.8, // inside the viewfinder: the top coil and the rising stream stay within its ticks
       phone: { x: 0.5, y: 0.27, size: 0.95, maxH: 0.56 },
     });
     stream.material.uniforms.uPx.value = renderer.getPixelRatio() * ctx.frame.scale;

@@ -82,4 +82,8 @@ canvas[data-scene][data-lost] { opacity: 0 !important; }
 
 /* ---------- CTA wordmark ---------- */
 .cta__stage { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+/* With motion the band grows out of a small square (motion/reveals.js): the wordmark waits until it
+   is mostly open (.is-open), so no letter drops through the square. */
+.js.motion .cta__stage { opacity: 0; transition: opacity 0.6s var(--ease); }
+.js.motion .cta.is-open .cta__stage { opacity: 1; }
 .cta__canvas { position: absolute; inset: 0; width: 100%; height: 100%; }

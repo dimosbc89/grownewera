@@ -2,6 +2,10 @@
    only apply with JS + motion allowed, so without JS, with prefers-reduced-motion, or after the 4s
    <head> safety net, everything shows. */
 .js.motion [data-reveal], .js.motion [data-stagger] > *, .js.motion [data-hero-in] { opacity: 0; transform: translateY(28px); }
+/* FAQ answers are revealed by the accordion (motion/ui.js), never by the scroll reveals: inside a
+   closed <details> they have no box to measure. The markup carries no reveal hooks there; this
+   keeps them visible should one slip in. */
+.js.motion .faq__a [data-reveal], .js.motion .faq__a [data-stagger] > * { opacity: 1; transform: none; }
 /* Stacking cards only fade: their sticky triggers are measured on the cards, so no offset here. */
 .js.motion [data-stack] > * { transform: none; }
 

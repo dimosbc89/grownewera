@@ -154,8 +154,10 @@ function initTilt() {
   // Rects are cached per card and re-read only after the page has scrolled.
   let epoch = 0;
   addEventListener('scroll', () => epoch++, { passive: true });
+  // Stacking cards are skipped: pin.js scrubs their rotationX (the tilt-back), and a pointer tilt
+  // on the exposed edge of a covered card would overwrite it.
   for (const card of $$('[data-tilt]')) {
-    if (card._growTilt) continue;
+    if (card._growTilt || card.closest('[data-stack]')) continue;
     card._growTilt = true;
     const rX = gsap.quickTo(card, 'rotationX', { duration: 0.7, ease: 'power3' });
     const rY = gsap.quickTo(card, 'rotationY', { duration: 0.7, ease: 'power3' });

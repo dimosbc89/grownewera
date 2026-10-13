@@ -79,9 +79,10 @@
 .mnav {
   position: fixed; inset: 0; z-index: 99; background: var(--black); padding-top: var(--header-h);
   clip-path: inset(0 0 100% 0); transition: clip-path 0.6s var(--ease); overflow-y: auto;
+  overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
 }
 .mnav.is-open { clip-path: inset(0 0 0 0); }
-.mnav__inner { padding: 24px var(--gutter) 40px; min-height: 100%; display: flex; flex-direction: column; gap: 32px; }
+.mnav__inner { padding: 24px var(--gutter) calc(40px + env(safe-area-inset-bottom, 0px)); min-height: 100%; display: flex; flex-direction: column; gap: 32px; }
 .mnav__list > li { border-bottom: 1px solid var(--line); padding: 14px 0; }
 .mnav__list > li > a, .mnav__head {
   display: block; font-family: var(--font-display); font-weight: 700; text-transform: uppercase; letter-spacing: -0.03em;
@@ -101,6 +102,13 @@
 .mnav.is-open .mnav__list > li:nth-child(5) { transition-delay: 0.2s; }
 .mnav.is-open .mnav__list > li:nth-child(6) { transition-delay: 0.25s; }
 .mnav.is-open .mnav__list > li:nth-child(7) { transition-delay: 0.3s; }
+/* Phones in landscape: a smaller scale so more of the list fits the short screen (it scrolls). */
+@media (max-height: 520px) and (orientation: landscape) {
+  .mnav__inner { padding-top: 12px; gap: 20px; }
+  .mnav__list > li { padding: 10px 0; }
+  .mnav__list > li > a, .mnav__head { font-size: 1.5rem; }
+  .mnav__sub { margin-top: 8px; }
+}
 
 .progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; pointer-events: none; }
 .progress span { display: block; height: 100%; background: var(--lime); transform: scaleX(0); transform-origin: left; }
@@ -121,13 +129,23 @@
 .hero {
   --hero-fs: clamp(2.15rem, 0.95rem + 3.85vw, 5.6rem);
   --hero-ch: 16ch;
-  position: relative; min-height: 100svh; display: flex; flex-direction: column; justify-content: flex-end;
+  /* Short viewports (laptops, phones in landscape) cap the title height (see the height queries
+     below); --hero-vis is the part of the hero visible at scroll 0, which the viewfinder fits in. */
+  --hero-cap: 100vh;
+  --hero-vis: 100svh;
+  --hud-top: calc(var(--header-h) + clamp(56px, 8vh, 88px));
+  --hud-bottom: 96px;
+  position: relative; min-height: var(--hero-vis); display: flex; flex-direction: column; justify-content: flex-end;
   padding-top: var(--header-h); overflow: hidden; isolation: isolate;
   border-bottom: 1px solid var(--line);
 }
 .hero--home { --hero-fs: clamp(2.3rem, 0.8rem + 4.1vw, 6.2rem); --hero-ch: 15ch; }
 .hero--case { --hero-fs: clamp(1.95rem, 0.95rem + 2.9vw, 4.5rem); --hero-ch: 21ch; }
 .hero--contact, .hero--team, .hero--works { --hero-ch: 15ch; }
+.hero:has(.trust) { --hud-bottom: 148px; }
+/* The editorial note (SITE.showDrafts) sits between the header and the hero: the hero then starts
+   under it (no header padding of its own) and its first screen is the viewport minus both. */
+.draft-note + .hero { --hero-vis: calc(100svh - var(--header-h) - var(--note-h)); --hud-top: clamp(56px, 8vh, 88px); padding-top: 0; }
 /* .hero__stage / .hero__canvas: see three.css */
 .hero__grid { position: absolute; inset: 0; z-index: -1; display: grid; grid-template-columns: repeat(4, 1fr); max-width: var(--max); margin: 0 auto; padding-inline: var(--gutter); pointer-events: none; }
 .hero__grid i { border-left: 1px solid rgba(255, 255, 255, 0.05); }
@@ -136,14 +154,39 @@
 .hero__top { position: relative; margin-bottom: auto; display: flex; align-items: center; gap: 18px; padding-top: clamp(18px, 2.4vw, 32px); }
 .hero__top::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--line-strong), var(--line) 40%, transparent); }
 .hero__inner { position: relative; padding-top: clamp(24px, 4vh, 56px); padding-bottom: clamp(28px, 4.2vh, 56px); }
-.hero__title { font-size: var(--hero-fs); max-width: var(--hero-ch); margin: 22px 0 26px; line-height: 0.93; letter-spacing: -0.04em; }
+.hero__title { font-size: min(var(--hero-fs), var(--hero-cap)); max-width: var(--hero-ch); margin: 22px 0 26px; line-height: 0.93; letter-spacing: -0.04em; }
 .hero__title .w { display: inline-block; }
 .hero__sub { max-width: 54ch; color: var(--grey); font-size: clamp(1.02rem, 0.94rem + 0.42vw, 1.28rem); line-height: 1.5; margin-bottom: 34px; }
 .hero__meta { margin-top: 20px; font-family: var(--font-mono); font-size: var(--fs-mono); color: var(--grey); }
 @media (min-width: 1081px) {
-  /* Keep the copy column clear of the 3D stage on the right. */
-  .hero:not(.hero--flat) .hero__inner > * { max-width: min(60%, 860px); }
-  .hero:not(.hero--flat) .hero__title { max-width: min(var(--hero-ch), 60%); }
+  /* Keep the copy column clear of the 3D stage on the right: it ends 24px before the viewfinder
+     (.hero__hud: min(40%, 600px) of the hero, flush with the column's right edge). */
+  .hero:not(.hero--flat) .hero__inner > * { max-width: min(100% - min(40vw, 600px) - 24px, 860px); }
+  .hero:not(.hero--flat) .hero__title { max-width: min(var(--hero-ch), 100% - min(40vw, 600px) - 24px); }
+}
+/* Laptops (720px-ish tall): the title scales with the height too and the copy packs tighter, so
+   title + sub + buttons + data strip end inside the first screen. */
+@media (min-width: 721px) and (max-height: 780px) {
+  .hero { --hero-cap: 6.3svh; }
+  .hero__top { padding-top: 16px; }
+  .hero__inner { padding-top: 16px; padding-bottom: 22px; }
+  .hero__title { margin: 14px 0 16px; }
+  .hero__sub { margin-bottom: 22px; font-size: 1.1rem; }
+  .hero__cell { min-height: 52px; padding-block: 8px; }
+}
+@media (min-width: 721px) and (max-height: 680px) {
+  .hero { --hero-cap: 5.9svh; }
+  .hero__sub { font-size: 1rem; margin-bottom: 18px; }
+  .hero__cell { min-height: 46px; padding-block: 6px; }
+}
+/* Phones in landscape: the title fits the screen; the decorative strips wait below the fold. */
+@media (max-height: 520px) and (orientation: landscape) {
+  .hero { --hero-cap: clamp(1.5rem, 7.5svh, 2.4rem); }
+  .hero__top { padding-top: 12px; }
+  .hero__inner { padding-top: 10px; padding-bottom: 16px; }
+  .hero__title { margin: 10px 0 12px; max-width: 30ch; }
+  .hero__sub { margin-bottom: 16px; font-size: 0.95rem; line-height: 1.45; max-width: 72ch; }
+  .hero > .hero__foot, .hero > .trust { display: none; }
 }
 
 /* Data strip: mono cells between thin rules (decorative, aria-hidden). */
@@ -167,12 +210,13 @@
 @keyframes cue { to { top: 100%; } }
 
 /* Viewfinder around the WebGL stage: corner ticks, caption, centre cross. */
+/* Sized against the first screen (never the whole hero), so the bottom ticks and the caption stay
+   above the fold when the copy makes the hero taller than the viewport. */
 .hero__hud {
   position: absolute; z-index: -1; pointer-events: none;
   right: max(var(--gutter), calc((100% - var(--max)) / 2 + var(--gutter)));
-  top: calc(var(--header-h) + clamp(56px, 8vh, 88px)); bottom: 96px; width: min(40%, 600px);
+  top: var(--hud-top); height: calc(min(var(--hero-vis), 100%) - var(--hud-top) - var(--hud-bottom)); width: min(40%, 600px);
 }
-.hero:has(.trust) .hero__hud { bottom: 148px; }
 .hero__hud i { position: absolute; width: 18px; height: 18px; border: 0 solid var(--lime); }
 .hero__hud i:nth-child(1) { left: 0; top: 0; border-width: 1px 0 0 1px; }
 .hero__hud i:nth-child(2) { right: 0; top: 0; border-width: 1px 1px 0 0; }
@@ -184,6 +228,9 @@
 }
 .hero__fig::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 8px; background: var(--lime); vertical-align: 1px; }
 .hero__stage.is-static ~ .hero__hud, .no-js .hero__hud { display: none; }
+/* The frame appears with the stage's first frame (data-ready, three/core.js), never around nothing. */
+.js.motion .hero__stage ~ .hero__hud { opacity: 0; transition: opacity 0.9s var(--ease) 0.2s; }
+.js.motion .hero__stage:has(canvas[data-ready]) ~ .hero__hud { opacity: 1; }
 @media (max-width: 1080px) { .hero__hud { display: none; } }
 
 .hero--simple, .hero--flat { min-height: auto; }
@@ -209,14 +256,14 @@
   .hero__cell--cue { display: none; }
   .hero__cell--cue + .hero__cell { border-top: 0; }
   .hero__cell--hq { margin: 0; text-align: right; }
-  .hero__cell--hq .hero__v { font-size: 0.64rem; }
+  .hero__k, .hero__v, .hero__cell--hq .hero__v { font-size: 0.75rem; }
   .hero__cell--tags { flex-direction: column; gap: 8px; }
-  .hero__cell--tags b { font-size: 0.62rem; padding: 2px 5px; }
+  .hero__cell--tags b { font-size: 0.75rem; padding: 2px 5px; }
 }
 
 .crumbs ol { display: flex; flex-wrap: wrap; gap: 6px; font-family: var(--font-mono); font-size: var(--fs-mono); color: var(--grey); text-transform: uppercase; letter-spacing: 0.06em; }
 .crumbs li + li::before { content: '/'; margin-right: 6px; color: var(--lime); }
-.crumbs a { transition: color 0.2s; }
+.crumbs a { display: inline-block; padding-block: 5px; margin-block: -5px; transition: color 0.2s; }
 .crumbs a:hover { color: var(--white); }
 .crumbs [aria-current] { color: var(--white); }
 
@@ -322,8 +369,9 @@
 }
 .site-footer__word i { font-style: normal; }
 .site-footer__legal { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding-block: 20px; border-top: 1px solid var(--line); font-family: var(--font-mono); font-size: 0.72rem; color: var(--grey); }
+.site-footer__legal a { display: inline-block; padding-block: 6px; }
 .site-footer__legal a:hover, .linkish:hover { color: var(--lime); }
-.linkish { font-family: var(--font-mono); font-size: 0.72rem; color: var(--grey); text-decoration: underline; text-underline-offset: 3px; }
+.linkish { font-family: var(--font-mono); font-size: 0.72rem; color: var(--grey); text-decoration: underline; text-underline-offset: 3px; padding-block: 6px; }
 @media (max-width: 960px) {
   .site-footer__top { grid-template-columns: 1fr 1fr; }
   .site-footer__brand { grid-column: 1 / -1; }
@@ -335,12 +383,18 @@
   .site-footer__col { border-left: 0; padding: 24px 0; border-top: 1px solid var(--line); }
   .site-footer__legal { flex-direction: column; align-items: flex-start; }
 }
+@media (max-width: 720px) {
+  /* 12px floor for the mono labels on phones */
+  .logo__tag, .badges li, .site-footer__legal, .linkish { font-size: 0.75rem; }
+}
 
 /* ---------- Cookie banner ---------- */
+/* Bottom right: the hero copy and its buttons sit bottom left, so the banner never hides them. */
 .cookie {
-  position: fixed; left: 16px; bottom: 16px; z-index: 950; width: min(400px, calc(100vw - 32px));
+  position: fixed; right: 16px; bottom: 16px; z-index: 950; width: min(400px, calc(100vw - 32px));
+  max-height: calc(100svh - var(--header-h) - 32px); overflow-y: auto; overscroll-behavior: contain;
   background: var(--panel); border: 1px solid var(--line-strong); padding: 18px; font-size: 0.82rem; line-height: 1.5; color: var(--grey);
-  box-shadow: 6px 6px 0 var(--lime);
+  box-shadow: -6px 6px 0 var(--lime);
 }
 .cookie[hidden] { display: none; }
 .cookie__t { font-size: 0.95rem; color: var(--white); margin-bottom: 8px; }
@@ -350,6 +404,15 @@
 .switch { display: flex; align-items: center; gap: 10px; color: var(--white); }
 .switch input { accent-color: var(--lime); width: 18px; height: 18px; }
 .cookie__btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+@media (max-width: 560px) {
+  /* Phones: a compact bottom sheet; the two choices share the first row, settings the second. */
+  .cookie { left: 8px; right: 8px; bottom: 8px; width: auto; max-height: 60svh; padding: 14px 14px 12px; font-size: 0.8rem; line-height: 1.42; box-shadow: 0 -4px 0 var(--lime); }
+  .cookie__t { margin-bottom: 4px; }
+  .cookie__prefs { gap: 6px; margin-top: 10px; padding-top: 10px; }
+  .cookie__btns { margin-top: 10px; gap: 6px; }
+  .cookie__btns .btn { flex: 1 1 auto; justify-content: center; }
+  .cookie__btns .btn__label { justify-content: center; padding-inline: 10px; }
+}
 
 /* ---------- Cursor + page curtain ---------- */
 .cursor { position: fixed; inset: 0; z-index: 1000; pointer-events: none; display: none; opacity: 0; }

@@ -1,8 +1,13 @@
 // initThree(): finds canvas[data-scene], checks WebGL2, picks a quality tier and lazy-loads
 // core.js + the scene module. Nothing from three.js is in the main bundle.
-//   Tiers: high (fine pointer, >= 6 cores or unknown) -> MSAA + selective bloom + grain on the hero
-//          mid  (touch, small screens, <= 4 cores)    -> no post, DPR <= 1.5
+//   Tiers: high (fine pointer, >= 6 cores or unknown, >= 4 GB or unknown) -> MSAA + selective
+//               bloom + grain on the hero (core.js may still start a weak GPU at mid)
+//          mid  (touch, small screens, <= 4 cores, < 4 GB, a 3G connection) -> no post, DPR <= 1.5
 //          low  (prefers-reduced-motion)              -> still frames only
+//   Data saver or a 2G connection: no WebGL at all (the static stages), nothing downloaded.
+//   Loading: on `high` the hero's modules (and the three.js chunk they import) are preloaded at
+//   boot (<meta name="gl-preload">, build.mjs) and imported right away; on `mid` / `low` the hero
+//   import waits for `grow:ready`, so phones spend their first second on the page itself.
 //   Debug: ?gl=high|mid|low forces the starting tier, ?gl=off disables WebGL.
 const SCENES = {
   helix: () => import('./scenes/helix.js'),
@@ -17,12 +22,30 @@ const MOUNTS = {
   wordmark: () => import('./wordmark.js'),
 };
 
+const connection = () => navigator.connection ?? {};
+// Data saver on, or a 2G-class connection: the scenes are decoration, so they are skipped.
+const skipGl = () => !!connection().saveData || /(^|-)2g$/.test(connection().effectiveType || '');
+
 export function pickQuality({ motion = true } = {}) {
   if (!motion) return 'low';
   const fine = matchMedia('(hover: hover) and (pointer: fine)').matches;
   const cores = navigator.hardwareConcurrency || 0;
-  if (!fine || innerWidth < 760 || (cores && cores <= 4)) return 'mid';
+  const memory = navigator.deviceMemory || 0;
+  if (!fine || innerWidth < 760 || (cores && cores <= 4) || (memory && memory < 4)) return 'mid';
+  if (connection().effectiveType === '3g') return 'mid';
   return 'high';
+}
+
+// <link rel="modulepreload"> for the hero's module graph (URLs from build.mjs), so the three.js
+// chunk downloads alongside core.js instead of after it.
+function preload() {
+  const urls = document.querySelector('meta[name="gl-preload"]')?.content.split(' ').filter(Boolean) ?? [];
+  for (const href of urls) {
+    const l = document.createElement('link');
+    l.rel = 'modulepreload';
+    l.href = href;
+    document.head.append(l);
+  }
 }
 
 // Cheap feature test only: creating a probe context costs as much as a real one (hundreds of ms
@@ -47,7 +70,7 @@ export function initThree() {
   const root = document.documentElement;
   let force = null;
   try { force = new URLSearchParams(location.search).get('gl'); } catch {}
-  if (force === 'off' || !hasWebGL2()) { canvases.forEach(fallback); return; }
+  if (force === 'off' || !hasWebGL2() || (!force && skipGl())) { canvases.forEach(fallback); return; }
 
   const motion = root.classList.contains('motion');
   const quality = ['high', 'mid', 'low'].includes(force) ? force : pickQuality({ motion });
@@ -91,6 +114,9 @@ export function initThree() {
     clock,
   };
   root.dataset.gl = quality;
+  if (quality === 'high') preload();
+  // `mid` / `low`: the hero's modules load once the page itself is up.
+  const heroLoad = quality === 'high' ? null : ready;
 
   const lazy = 'IntersectionObserver' in window
     ? new IntersectionObserver((entries) => {
@@ -118,7 +144,8 @@ export function initThree() {
   }
 
   for (const canvas of canvases) {
-    if (canvas.closest('[data-hero]') || !lazy) load(canvas);
+    if (canvas.closest('[data-hero]')) heroLoad ? heroLoad.then(() => load(canvas)) : load(canvas);
+    else if (!lazy) load(canvas);
     else lazy.observe(canvas);
   }
 }

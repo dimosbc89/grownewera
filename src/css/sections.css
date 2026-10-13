@@ -49,8 +49,15 @@
 /* Intro (first section): scrubbed lead + the page's product shot. */
 .sec--intro .sec-art { position: relative; margin: 8px 0 44px; border: 1px solid var(--line); }
 .sec-art::after { content: ''; position: absolute; left: -1px; top: -1px; width: 10px; height: 10px; background: var(--lime); }
-.sec--note { padding-block: clamp(48px, 6vw, 80px); }
-.sec--note .sec-body p { font-family: var(--font-mono); font-size: 0.85rem; }
+/* Editorial intro under the hero (blog): a lead in the body column (where .offset sections start
+   their copy), on a lime rule, in a compact band. */
+.sec--note { padding-block: clamp(36px, 4.4vw, 60px); }
+.sec--note .sec-body { max-width: 56ch; padding-left: clamp(18px, 2vw, 28px); border-left: 2px solid var(--lime); }
+.sec--note .sec-body p { font-size: clamp(1.06rem, 0.98rem + 0.36vw, 1.25rem); line-height: 1.55; color: var(--grey); }
+.sec--note .sec-body p:first-child { color: var(--white); }
+@media (min-width: 901px) {
+  .sec--note .sec-body { margin-left: calc((100% - clamp(24px, 3vw, 48px)) * 0.25 + clamp(24px, 3vw, 48px)); }
+}
 
 /* ---------- Section numerals (.sec-bgnum, every .sec) ----------
    Giant outline numerals, placed in the section's empty corner:

@@ -14,6 +14,7 @@
 // space, so it matches the cursor at any depth) and tints them lime; scroll speed stretches the
 // cloud a little; the camera drifts with the story's progress. Reduced motion: one composed frame
 // of the current step, redrawn when the step changes.
+import * as THREE from 'three';
 import { createStage, damp } from './core.js';
 import { SETS, FLAT, FONT, sequence, makeShape } from './story-shapes.js';
 
@@ -178,7 +179,7 @@ function vnoise(x, y, z) {
 
 // ---------------------------------------------------------------- the stage
 function buildStory(ctx, canvas, set) {
-  const { THREE, rig, scene, camera, renderer, small, quality, motion, invalidate, input } = ctx;
+  const { rig, scene, camera, renderer, small, quality, motion, invalidate, input } = ctx;
   const N = !motion ? (small ? 8000 : 12000) : quality === 'high' ? 18000 : small ? 8000 : 12000;
   let seed = 11;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);

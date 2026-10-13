@@ -17,12 +17,12 @@ removing a hook is a breaking change: update this file and every consumer in the
 
 ```
 src/js/main.js              boot only: initMotion(), initThree(), initForm(), initCookies()
-src/js/motion/index.js      initMotion(): runs every motion module in order, returns { lenis, scrollTo }
+src/js/motion/index.js      initMotion(): runs every motion module in order (two phases), returns { lenis, scrollTo }
 src/js/motion/util.js       shared flags (motion, finePointer) and DOM helpers ($, $$, headerH, pad, clamp)
 src/js/motion/ease.js       CustomEase curves shared by every module (`EASE`)
 src/js/motion/velocity.js   one smoothed scroll velocity (`velocity()`) and `skew()` for velocity-leaning type
 src/js/motion/scramble.js   `scramble(el)`: text-decode effect with exact restore
-src/js/motion/smooth.js     Lenis + ScrollTrigger glue (lenis, scrollTo, refresh helpers)
+src/js/motion/smooth.js     Lenis + ScrollTrigger glue (lenis, scrollTo, jumpTo, refresh helpers)
 src/js/motion/split.js      split(el, { mode: 'words' | 'chars' }) -> inner spans
 src/js/motion/header.js     sticky header, progress bar, mega menus, mobile menu
 src/js/motion/preloader.js  first-visit preloader, fires `grow:ready`
@@ -35,7 +35,7 @@ src/js/motion/transitions.js page transitions (curtain)
 src/js/motion/ui.js         FAQ, filters (+ Flip), counters, legal TOC, [data-scramble], [data-strike]
 src/js/three/index.js       initThree(): finds canvases, picks quality tier, lazy-imports the rest
 src/js/three/core.js        async createStage(canvas, opts): renderer, scene, camera, rig, post-processing, loop
-src/js/three/post.js        `high` tier pipeline: MSAA target, selective bloom, grain/aberration/vignette (lazy)
+src/js/three/post.js        post-processed hero: MSAA target, selective bloom, grain/aberration/vignette (lazy)
 src/js/three/util.js        brand palette, materials, dust, easing, simplex noise, disposeTree
 src/js/three/scenes/*.js    one hero scene per file: helix, bars, orb, panels, blocks, globe
 src/js/three/scenes/_shared.js  scene helpers: frame()/shiftFrame() composition, look(), localPointer(), glow/points
@@ -54,8 +54,10 @@ dynamic `import()` only when a canvas is on the page.
 ### Scene module API (`src/js/three/scenes/<name>.js`)
 
 ```js
+import * as THREE from 'three'; // every module imports three itself (never pass the namespace
+                                // around as a value: that keeps all of three in the bundle)
 export default function build(ctx) {
-  // ctx: { THREE, scene, camera, rig, renderer, small, quality, palette, motion }
+  // ctx: { scene, camera, rig, renderer, small, quality, palette, motion }
   //   rig      THREE.Group already positioned for the layout (right of headline on desktop)
   //   quality  'high' | 'mid' | 'low'
   //   palette  { lime, white, ink, black, red } as THREE.Color
@@ -100,9 +102,13 @@ work before `grow:hero-in`.
   `render(ctx)`: replaces `renderer.render(scene, camera)` on stages without post-processing.
   `restore(ctx)`: after a lost WebGL context came back (re-render render-to-texture results).
 * High tier pipeline: the hero's context is created without antialiasing; the scene renders into a
-  half-float MSAA x4 target, then bloom, then one final pass (very subtle edge chromatic
-  aberration, vignette, the renderer's tone mapping + sRGB, fine luminance-weighted grain). A tier
-  drop keeps the MSAA target and tone mapping and turns the effects off.
+  half-float MSAA target (x4 below a pixel ratio of 1.5, x2 at 1.5; the tier's DPR is capped at
+  1.5), then bloom, then one final pass (very subtle edge chromatic aberration, vignette, the
+  renderer's tone mapping + sRGB, fine luminance-weighted grain). A tier drop keeps the target and
+  tone mapping, turns the effects off and lowers the samples (`mid` x2, `low` none:
+  `postFx.setTier(q)`). A weak GPU (software rasteriser, integrated Intel; read from the context's
+  unmasked renderer) starts at `mid` the same way, unless `?gl=` forces the tier.
+* `env` (createStage option) is `true`, `false` or a function `(renderer) -> texture`.
 * Lifecycle: ResizeObserver on the canvas plus devicePixelRatio changes; the loop pauses off-screen,
   in a hidden tab and at zero size (e.g. `display: none`). On `webglcontextlost` the loop stops;
   after 4s without a restore the canvas gets `data-lost` (three.css hides it); on restore the
@@ -121,7 +127,9 @@ work before `grow:hero-in`.
 * Composition is the scene's job: `frame()` (called from the scene's `resize`) resets the rig to
   the origin, scales it and shifts the projection with `camera.setViewOffset`, so the object sits
   right of the measured hero copy on wide canvases (never under it) and above / behind the
-  headline on phones, while the camera is free to orbit. `shiftFrame()` moves that anchor per frame
+  headline on phones, while the camera is free to orbit. With `hud: k` (the helix) it is fitted
+  inside the measured `.hero__hud` viewfinder instead (centred, height k of the frame, never past
+  its right edge). `shiftFrame()` moves that anchor per frame
   (scroll choreography). The copy edge is read from the text line boxes on resize only.
 * `look()` switches the stage to `THREE.NeutralToneMapping` (ACES turns #ccff00 olive and bleaches
   bright lime to white); `tuneLights()` rebalances the lights `createStage()` adds.
@@ -153,7 +161,7 @@ work before `grow:hero-in`.
 | `[data-count]` | stat numbers | motion/ui | count-up |
 | `[data-marquee="speed"]` | marquees | motion/marquee | loop, velocity reactive |
 | `[data-magnetic]` `[data-tilt]` | buttons, cards | motion/pointer | micro-interactions |
-| `[data-cta]` | CTA band | motion, three | CTA reveal; holds the wordmark canvas |
+| `[data-cta]` | CTA band | motion, three | CTA reveal; holds the wordmark canvas. `.is-open` (motion/reveals.js) once the band has mostly grown out of its square: the wordmark stage only shows from then on (three.css) |
 | `[data-footer-word]` | footer wordmark | motion/reveals | rise-in |
 | `.preloader` | layout shell | motion/preloader | first-visit loader |
 | `.curtain` | layout shell | motion/transitions | page transition |
@@ -162,10 +170,12 @@ work before `grow:hero-in`.
 
 * `grow:ready` (window): preloader finished (or skipped). Hero intro starts on it. Fired once,
   asynchronously, so every module has subscribed; inside the motion layer use `onReady(fn)`.
-  Nothing heavy may run before it: the WebGL layer only downloads modules until then.
-* `grow:hero-in` (window, motion/hero.js -> three): the hero intro copy has landed. Every WebGL
-  stage's heavy setup waits for it so the preloader and the intro never stall (fallback: 3s after
-  `grow:ready`). Not fired without motion; the WebGL layer then only waits for `grow:ready`.
+  Nothing heavy may run before it: the WebGL layer only downloads modules until then (on the
+  `mid` / `low` tiers the hero's modules are not even requested before it).
+* `grow:hero-in` (window, motion/hero.js -> three, motion/index.js): the hero intro copy has
+  landed. Every WebGL stage's heavy setup waits for it so the preloader and the intro never stall
+  (fallback: 3s after `grow:ready`), and the motion layer's second boot phase starts on it (see
+  "Motion boot"). Not fired without motion; the WebGL layer then only waits for `grow:ready`.
 * `grow:story` (on the story canvas): see table; `detail` also has `set` (the `data-story` value).
 * `grow:story-listen` (on the story canvas, three -> motion): the lazily loaded story module is
   listening; motion/pin.js replays the current `grow:story` state.
@@ -212,11 +222,28 @@ three/story.js must accept every set (falling back to `growth` for one it does n
 
 ### Markup additions (lib/*, styled in src/css; none is required by motion or WebGL)
 
+* Shell order: preloader, skip link, cookie banner (`role=dialog`, reached by Tab right after the
+  skip link), header, `#mnav`, `<main id=main>`, footer. Nav links: `aria-current="page"` on the
+  link to this page, `"true"` on a parent section's link.
+* FAQ answers (`.faq__a`) carry no `[data-reveal]` / `[data-stagger]`: the accordion
+  (motion/ui.js) reveals them; motion.css keeps any that slip in visible.
+* Contact form: `action` is `SITE.formEndpoint` or `mailto:` (`enctype=text/plain`, so it works
+  without JS; form.js sets `noValidate` and handles both). `data-err-required|email|consent` hold
+  the inline messages: an invalid field gets `.is-invalid`, `aria-invalid`, a `.field__err`
+  (`aria-describedby`) and stays red until it is valid; the status line clears once all are.
+* `.draft-note` (drafts only) sets `--note-h` on `<html>` (main.js measures it); the hero below it
+  sizes its first screen and viewfinder with it.
+* Result cards keep the `[DEMO n]` marker visible (in their tag) while `SITE.showDrafts` is on.
+
 * Hero: `.hero--<kind>` (page kind from build.mjs) sets the title scale. `.hero__top` (running head
   with the breadcrumbs, outside `.hero__inner`), `.hero__foot.hero__data` (aria-hidden mono strip of
   `.hero__cell` > `.hero__k` + `.hero__v`; keeps `.scroll-cue` and `.coords`), and on pages with a
   scene `.hero__hud[data-depth]` (viewfinder corners + `.hero__fig` caption around the 3D stage;
-  hidden on phones; three/index.js removes it with the stage when WebGL is off or fails). On
+  hidden on phones; with motion it fades in once the canvas has drawn its first frame
+  (`data-ready`); three/index.js removes it with the stage when WebGL is off or fails). The hero's
+  first screen fits short viewports: the title size is capped by the viewport height (`--hero-cap`)
+  under 780px tall and in phone landscape, and the viewfinder is sized against the visible part
+  of the hero (`--hero-vis`), never the whole hero. On
   desktop the copy column stays within ~60% of the width, so the right ~40% is free for the rig.
 * CTA: `.cta__rail` (aria-hidden mono row along the band's bottom) sits outside `.cta__inner`, which
   holds the copy only (three/wordmark.js measures it). The copy column is ≤ ~13ch / 46ch wide.
@@ -237,8 +264,13 @@ three/story.js must accept every set (falling back to `growth` for one it does n
 
 * `prefers-reduced-motion: reduce` -> no Lenis, no pins/scrubs/parallax, WebGL renders one still
   frame, everything visible. Without JS everything is visible.
-* WebGL tiers: `high` (fine pointer, ≥6 cores or unknown) -> post-processing (MSAA, bloom, grain);
-  `mid` (touch / small screens / ≤4 cores) -> no post, DPR ≤ 1.5; `low` (reduced motion) -> still.
+* WebGL tiers: `high` (fine pointer, ≥6 cores or unknown, ≥4 GB device memory or unknown) ->
+  post-processing (MSAA, bloom, grain); `mid` (touch / small screens / ≤4 cores / <4 GB / a 3G
+  connection, or a weak GPU detected by core.js) -> no post, DPR ≤ 1.5; `low` (reduced motion) ->
+  still. Data saver on or a 2G connection: no WebGL at all (every canvas falls back, nothing of
+  three is downloaded). On `high` the hero's module graph is preloaded at boot
+  (`<meta name="gl-preload" content="url …">`, written by build.mjs from the esbuild metafile;
+  three/index.js adds the `modulepreload` links).
   Drop a tier automatically when frames average > 24ms for 2s. Pause every canvas when off-screen
   or when the tab is hidden. (A tier reached by dropping keeps animating: `low` then means DPR 1;
   still frames come from `motion: false`, i.e. reduced motion.) Only the hero mounts at load
@@ -253,7 +285,10 @@ three/story.js must accept every set (falling back to `growth` for one it does n
 
 ## Build
 
-`node build.mjs [--out <dir>] [--watch]`. Agents working in parallel must build into their own
+`node build.mjs [--out <dir>] [--watch]`. Fonts: `src/css/fonts.css` declares only the Greek +
+Latin subsets (6 files); the Greek heading face (Manrope), Space Grotesk Latin and Inter Greek +
+Latin are preloaded. The build warns (`[layout] …`) when a page kind loses a block it is expected
+to render (result cards, testimonials, people, stats). Agents working in parallel must build into their own
 `--out` directory and serve it with `node tools/serve.mjs --dir <dir> --port <n>`.
 Sources resolve against the repo, so the build runs from any directory; `--out` resolves against
 the working directory (default `<repo>/dist`). The output folder is wiped first, so the build
@@ -267,6 +302,41 @@ committed; the site build never needs the font parser.
 
 Debugging WebGL: `?gl=high|mid|low` forces the starting tier and disables the automatic drop
 (useful in software-GL test browsers, which always drop); `?gl=off` skips WebGL entirely.
+
+## Motion boot (motion/index.js)
+
+`initMotion()` runs in two phases so the first screen never waits for the whole page:
+
+* now: smooth scroll, velocity, transitions, header, preloader, hero (what the first screen needs).
+* later: reveals, pins, marquees, pointer, UI and then `settle()`, one module per task (the
+  browser paints in between). Starts on `grow:hero-in`, on the first scroll / wheel / touch / key /
+  pointer press, right away when the page opens scrolled (a hash, a restored position) or has no
+  hero intro (reduced motion), else 2.5s after `grow:ready` at the latest. Below-the-fold content
+  stays in its pre-reveal state until then. A module that throws there drops the motion classes
+  (`motion-failed`), like a failure in the first phase does in main.js.
+* main.js calls `initThree()` before `initMotion()`, so WebGL downloads are not queued behind the
+  motion setup. ScrollTrigger's own DOMContentLoaded / load refreshes are off (`autoRefreshEvents:
+  'visibilitychange,resize'`); `settle()` refreshes once, then fonts, the load event, images,
+  canvases and height changes coalesce into one idle-time refresh.
+
+Other runtime rules added with it:
+
+* `scrollTo(target)` (smooth.js) keeps the header clear once: a target with its own
+  `scroll-margin-top` (the form, legal headings) uses that margin, others get the header height +
+  16px. `jumpTo(hash)` scrolls and moves the focus to the target (`tabindex="-1"` added when it is
+  not focusable): transitions.js uses it for same-page anchors (skip link, `#form`). A second
+  click while leaving falls through to native navigation; a bfcache restore resets the leave state.
+* `[data-stack]` grids only stack when their tallest card fits under the header
+  (`height + header + 24 <= innerHeight`); otherwise they stay a plain list (decided at load and
+  when the width changes). Stacking cards get no pointer tilt (pin.js owns their `rotationX`).
+* The pinned reel scrolls the page to a card that receives keyboard focus (and resets any
+  sideways scroll the browser gave a clipping ancestor).
+* While the mobile menu is open, `main`, the footer, the skip link and the cookie banner are
+  `inert`; a link in the menu closes it before the click is handled (page transition or jump); `#mnav` and `.cookie` carry `data-lenis-prevent` (their own scroll works while Lenis
+  is stopped / running). The header ignores the scroll position ScrollTrigger reports while it
+  refreshes (it would read as the top of the page).
+* `split()`: punctuation right after an inline `<mark>`/`<a>` unit joins that unit, and a
+  one-letter word joins the next word (no-break space), so neither can start / end a line alone.
 
 ## Motion layer additions (src/js/motion/*, src/css/motion.css)
 

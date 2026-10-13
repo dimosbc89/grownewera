@@ -9,6 +9,7 @@
 // Legibility first: placement is measured against the CTA copy on resize. Right of the copy when
 // the band has room; otherwise small, hanging in the band's top-right padding above the eyebrow
 // (never behind the black-on-lime buttons). Reduced motion: the assembled word, one still frame.
+import * as THREE from 'three';
 import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader.js';
 import { createStage } from './core.js';
 import { clamp01 } from './util.js';
@@ -39,7 +40,7 @@ export function mount(canvas, opts = {}) {
 // A soft studio for the lacquer to reflect: near-black overhead and in front (so the faces read
 // as black), the band's lime below and at grazing angles (so bevels and undersides pick it up), one
 // long overhead softbox and two vertical strips for crisp highlights along the bevels.
-function studio(renderer, THREE) {
+function studio(renderer) {
   const s = new THREE.Scene();
   const sky = new THREE.SphereGeometry(10, 48, 24);
   const pos = sky.attributes.position;
@@ -73,7 +74,7 @@ function studio(renderer, THREE) {
 }
 
 // Soft shadow of one glyph (canvas 2D shadowBlur works everywhere, unlike ctx.filter).
-function shadowTexture(THREE, glyph) {
+function shadowTexture(glyph) {
   const [x0, y0, x1, y1] = glyph.bbox;
   const pad = 140;
   const S = 0.25; // canvas px per glyph unit
@@ -94,7 +95,7 @@ function shadowTexture(THREE, glyph) {
 }
 
 function buildWordmark(ctx) {
-  const { THREE, rig, camera, canvas, motion, input } = ctx;
+  const { rig, camera, canvas, motion, input } = ctx;
   const loader = new SVGLoader();
   const mat = new THREE.MeshPhysicalMaterial({
     color: 0x040404, roughness: 0.32, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.04, envMapIntensity: 1.2,
@@ -141,7 +142,7 @@ function buildWordmark(ctx) {
     const home = new THREE.Vector3(g.x * EM + cx - total / 2, cy - capH / 2, 0);
     mesh.position.copy(home);
     word.add(mesh);
-    const sh = shadowTexture(THREE, g);
+    const sh = shadowTexture(g);
     const shadow = new THREE.Mesh(
       new THREE.PlaneGeometry(sh.w, sh.h),
       new THREE.MeshBasicMaterial({ map: sh.tex, color: 0x000000, transparent: true, opacity: 0, depthWrite: false }),
