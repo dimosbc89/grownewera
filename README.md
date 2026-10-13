@@ -19,8 +19,18 @@ npm run preview    # serves dist/ on http://localhost:4173
 npm run dev        # rebuilds on every change in src/, lib/, content/
 ```
 
-`dist/` is a plain static site. Deploy it to Netlify, Cloudflare Pages or Vercel with build
-command `npm run build` and output directory `dist`. Point the host's 404 at `dist/404.html`.
+`dist/` is a plain static site.
+
+### Deploy to Cloudflare
+
+`wrangler.jsonc` deploys `dist/` as a Cloudflare Worker with static assets (clean URLs, 404 page,
+cache headers from `src/static/_headers`).
+
+* **From GitHub (recommended):** Cloudflare dashboard → Workers & Pages → Create → Import a
+  repository → pick this repo. Build command `npm run build`, deploy command `npx wrangler deploy`.
+  Every push then deploys automatically. Add `marketingagencygreece.online` under the Worker's
+  Settings → Domains & Routes.
+* **From a computer:** `npx wrangler login`, then `npm run deploy`.
 
 ## Change the copy
 
