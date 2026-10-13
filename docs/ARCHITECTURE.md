@@ -23,7 +23,7 @@ src/js/motion/smooth.js     Lenis + ScrollTrigger glue (lenis, scrollTo, refresh
 src/js/motion/split.js      split(el, { mode: 'words' | 'chars' }) -> inner spans
 src/js/motion/header.js     sticky header, progress bar, mega menus, mobile menu
 src/js/motion/preloader.js  first-visit preloader, fires `grow:ready`
-src/js/motion/hero.js       hero intro timeline + layered hero parallax
+src/js/motion/hero.js       hero intro timeline (fires `grow:hero-in`) + layered hero parallax
 src/js/motion/reveals.js    reveals, split titles, scrub lead, [data-parallax], section numerals, clip reveals
 src/js/motion/pin.js        [data-hscroll], [data-steps], [data-story] progress, [data-stack], pinned statements
 src/js/motion/marquee.js    [data-marquee]
@@ -31,7 +31,7 @@ src/js/motion/pointer.js    cursor, [data-magnetic], [data-tilt], [data-depth] p
 src/js/motion/transitions.js page transitions (curtain)
 src/js/motion/ui.js         FAQ, filters (+ Flip), counters, legal TOC, [data-scramble], [data-strike]
 src/js/three/index.js       initThree(): finds canvases, picks quality tier, lazy-imports the rest
-src/js/three/core.js        createStage(canvas, opts): renderer, scene, camera, rig, post-processing, loop
+src/js/three/core.js        async createStage(canvas, opts): renderer, scene, camera, rig, post-processing, loop
 src/js/three/post.js        bloom + grain composer for the `high` tier (lazy-imported by core.js)
 src/js/three/util.js        brand palette, materials, dust, easing, simplex noise, disposeTree
 src/js/three/scenes/*.js    one hero scene per file: helix, bars, orb, panels, blocks, globe
@@ -53,8 +53,11 @@ export default function build(ctx) {
   //   quality  'high' | 'mid' | 'low'
   //   palette  { lime, white, ink, black, red } as THREE.Color
   return {
-    update(time, scroll, pointer) {}, // scroll: 0..1 progress of the hero leaving the viewport
-                                      // pointer: { x, y } in -1..1, smoothed
+    update(time, scroll, pointer, dt) {}, // scroll: 0..1 progress of the hero leaving the viewport
+                                          // pointer: { x, y } in -1..1, smoothed
+                                          // dt: seconds since the last frame (0 for still frames);
+                                          // ease with damp(rate, dt) from core.js, never a fixed
+                                          // per-frame factor (that lags at low frame rates)
     dispose() {},                     // optional
     resize(width, height, ctx) {},    // optional, after the camera aspect is updated
     setQuality(quality, ctx) {},      // optional, after an automatic tier drop
@@ -65,6 +68,11 @@ export default function build(ctx) {
 `ctx` also carries `canvas` and `invalidate()` (request one redraw; only needed for still frames).
 `time` is seconds of *visible* animation: it stays at 0 while the first-visit preloader covers the
 page and does not advance while the canvas is paused, so intros always play on screen.
+`createStage()` is async: it builds in steps, each in its own idle slot (context, environment map,
+scene build, shader compile with `KHR_parallel_shader_compile` where available, then bloom/grain,
+which ease in), so it never blocks the main thread for the whole setup. It resolves with the stage
+once the first frame is queued (or `null` if the canvas left the page); a rejection makes
+`three/index.js` fall back. No stage starts this work before `grow:hero-in`.
 `story.js` and `wordmark.js` export `mount(canvas, opts)` and build on `createStage` with
 `layout: 'center'` (no hero rig offset, no post-processing).
 
@@ -73,7 +81,7 @@ page and does not advance while the canvas is paused, so intros always play on s
 | Hook | Where (markup) | Consumer | Meaning |
 | --- | --- | --- | --- |
 | `[data-hero]` | hero `<section>` | motion, three | the hero; scroll progress is measured against it |
-| `[data-depth="n"]` | hero layers, `.ill` inner `<g>` layers | motion/pointer, motion/hero | parallax depth, 0 = fixed, 1 = full; used for scroll and pointer parallax |
+| `[data-depth="n"]` | hero layers (`.hero__stage`, `.hero__grid`, title, `.hero__layer` wrappers), `.ill` inner `<g>` layers | motion/pointer, motion/hero | parallax depth, 0 = fixed, 1 = full; used for scroll and pointer parallax. Never on an element GSAP tweens (see below) |
 | `canvas[data-scene="<mode>"]` | `.hero__stage`, story, CTA | three | `helix bars orb panels blocks globe story wordmark` |
 | `[data-split]` / `="hero"` / `="chars"` | headings | motion/split | word or char split reveal |
 | `[data-reveal]` `[data-stagger]` | blocks / grids | motion/reveals | fade-up reveal; stagger children |
@@ -101,6 +109,10 @@ page and does not advance while the canvas is paused, so intros always play on s
 
 * `grow:ready` (window): preloader finished (or skipped). Hero intro starts on it. Fired once,
   asynchronously, so every module has subscribed; inside the motion layer use `onReady(fn)`.
+  Nothing heavy may run before it: the WebGL layer only downloads modules until then.
+* `grow:hero-in` (window, motion/hero.js -> three): the hero intro copy has landed. Every WebGL
+  stage's heavy setup waits for it so the preloader and the intro never stall (fallback: 3s after
+  `grow:ready`). Not fired without motion; the WebGL layer then only waits for `grow:ready`.
 * `grow:story` (on the story canvas): see table; `detail` also has `set` (the `data-story` value).
 * `grow:story-listen` (on the story canvas, three -> motion): the lazily loaded story module is
   listening; motion/pin.js replays the current `grow:story` state.
@@ -113,8 +125,20 @@ page and does not advance while the canvas is paused, so intros always play on s
   `--story` custom property (0..1) on the `[data-story]` wrapper.
 * `[data-depth]` layers move through the CSS `translate` property composed from `--px`/`--py`
   (pointer, motion/pointer.js) and `--sy` (scroll; motion/hero.js for the hero, motion/pointer.js
-  inside `.ill`). GSAP tweens on `transform` never conflict with it.
-* Canvases get `data-quality` (current tier) and `data-ready` (first frame drawn).
+  inside `.ill`). GSAP (3.12+) folds `translate` into its own transform and writes inline
+  `translate: none` on any element it tweens a transform on, which silently kills the depth. So no
+  GSAP tween may target a `[data-depth]` element: put the depth on a wrapper (the hero copy uses
+  `.hero__layer[data-depth]` around `[data-hero-in]`) and animate the inner element, or use CSS
+  (the hero canvas fades/zooms in by CSS transition, never via `.hero__stage`).
+* Stacking cards ([data-stack]): a covered card is scaled, shaded (deeper when two or more cards
+  sit on it), clipped at the bottom to the settled bottom of the card on top (so a taller card
+  never shows below or between later cards) and, at the end of the grid, held (`yPercent`) until
+  the card on top leaves. The grid's `[data-stagger]` reveal owns `y` on the cards.
+* Canvases get `data-quality` (current tier) and `data-ready` (first frame drawn; three.css fades
+  canvases in on it, with motion).
+* `.is-static` (on a canvas's parent, three/index.js): WebGL is missing or failed and the canvas
+  was removed. `.story__stage.is-static` (and `.no-js .story__stage`) draws the growth story as a
+  CSS bar chart driven by `--story`; it is hidden on phones, where the stage is only a backdrop.
 * sessionStorage: `grow-preloaded` (preloader shown this session), `grow-curtain` (transition).
 
 ## Quality and accessibility rules
@@ -125,14 +149,25 @@ page and does not advance while the canvas is paused, so intros always play on s
   `mid` (touch / small screens / ≤4 cores) -> no post, DPR ≤ 1.5; `low` (reduced motion) -> still.
   Drop a tier automatically when frames average > 24ms for 2s. Pause every canvas when off-screen
   or when the tab is hidden. (A tier reached by dropping keeps animating: `low` then means DPR 1;
-  still frames come from `motion: false`, i.e. reduced motion.) Only the hero mounts at load;
-  story and wordmark canvases mount when they come within one viewport.
+  still frames come from `motion: false`, i.e. reduced motion.) Only the hero mounts at load
+  (its heavy setup after `grow:hero-in`, like every stage); story and wordmark canvases mount when
+  they come within one viewport. Setup always runs in idle-time steps (see `createStage()`); no
+  boot-time probe context is created (a missing WebGL2 shows up as a failed `getContext` in
+  `createStage()`, and that canvas falls back).
+* The CTA wordmark stays clear of the copy (measured on resize): right of it when the band has
+  room, otherwise hanging off the top-right corner inside the band's top padding (never behind the
+  black-on-lime buttons).
 * Animate transforms and opacity only. No layout thrash in scroll handlers.
 
 ## Build
 
 `node build.mjs [--out <dir>] [--watch]`. Agents working in parallel must build into their own
 `--out` directory and serve it with `node tools/serve.mjs --dir <dir> --port <n>`.
+Sources resolve against the repo, so the build runs from any directory; `--out` resolves against
+the working directory (default `<repo>/dist`). The output folder is wiped first, so the build
+refuses the filesystem root, the repo or any of its parents, anything inside the repo except
+`dist/` and `.builds/<name>/`, files, and non-empty folders that do not hold a previous build
+(`assets/` + `404.html`).
 
 Debugging WebGL: `?gl=high|mid|low` forces the starting tier and disables the automatic drop
 (useful in software-GL test browsers, which always drop); `?gl=off` skips WebGL entirely.

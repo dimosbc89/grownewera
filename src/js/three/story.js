@@ -2,7 +2,7 @@
 // A points cloud that morphs through one shape per step as `grow:story` events arrive on the
 // canvas (detail { progress 0..1, step, steps }, dispatched by motion/pin.js). The "growth" set
 // goes scattered -> sphere -> helix -> bar field -> lattice -> rising arrow.
-import { createStage } from './core.js';
+import { createStage, damp } from './core.js';
 import { easeInOut } from './util.js';
 
 export function mount(canvas, opts = {}) {
@@ -95,6 +95,7 @@ const SHAPES = {
   },
 };
 const SEQUENCE = ['scatter', 'sphere', 'helix', 'bars', 'lattice', 'arrow'];
+const MORPH_RATE = 5; // per second: ~90% of the way to the scroll position in under half a second
 
 function buildStory({ THREE, rig, small, quality, palette, motion, invalidate }, canvas) {
   let seed = 7;
@@ -155,8 +156,11 @@ function buildStory({ THREE, rig, small, quality, palette, motion, invalidate },
   };
 
   return {
-    update(time) {
-      p += (target - p) * (motion ? 0.07 : 1);
+    update(time, scroll, pointer, dt = 1 / 60) {
+      // Time-based easing towards the scroll position: the same lag at any frame rate (a slow
+      // phone or a dropped tier no longer leaves the cloud steps behind the copy).
+      p += (target - p) * (motion ? damp(MORPH_RATE, dt) : 1);
+      if (Math.abs(target - p) < 1e-4) p = target;
       const f = p * (seq.length - 1);
       const i0 = Math.min(Math.floor(f), seq.length - 2);
       const e = easeInOut(f - i0);

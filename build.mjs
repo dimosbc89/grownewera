@@ -6,6 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 import { loadContent } from './lib/content.mjs';
 import { SITE, SCENES } from './lib/site.mjs';
@@ -17,12 +18,40 @@ const flag = (name, fallback) => {
   const i = argv.indexOf(name);
   return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : fallback;
 };
-const OUT = path.resolve(flag('--out', 'dist'));
+// Sources resolve against this file's directory, so the build works from any working directory;
+// --out resolves against the working directory like any CLI path (default: <repo>/dist).
+const ROOT = path.dirname(fileURLToPath(import.meta.url));
+const outArg = flag('--out', null);
+const OUT = outArg ? path.resolve(outArg) : path.join(ROOT, 'dist');
 const watch = argv.includes('--watch');
-// The output dir is wiped on every build, so never let it point at the repo, a parent of it or a source dir.
-const CWD = path.resolve('.');
-if (OUT === CWD || CWD.startsWith(OUT + path.sep) || ['src', 'lib', 'content', 'tools', 'docs', 'node_modules'].some((d) => OUT === path.resolve(d) || OUT.startsWith(path.resolve(d) + path.sep))) {
-  throw new Error(`Refusing to build into ${OUT}`);
+checkOut(OUT);
+process.chdir(ROOT);
+
+// The output dir is wiped on every build. Only allow <repo>/dist, a folder inside <repo>/.builds/,
+// or a path outside the repo that is missing, empty or holds a previous build (assets/ + 404.html).
+// Never the filesystem root, the repo, one of its ancestors or anything else inside the repo.
+function checkOut(out) {
+  const refuse = (why) => {
+    console.error(`Refusing to build into ${out}: ${why}`);
+    process.exit(1);
+  };
+  const inside = (child, parent) => {
+    const rel = path.relative(parent, child);
+    return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
+  };
+  const real = (p) => { try { return fs.realpathSync(p); } catch { return p; } };
+  const o = real(out);
+  const r = real(ROOT);
+  if (path.parse(o).root === o) refuse('it is the filesystem root');
+  if (o === r || inside(r, o)) refuse('it is the repository or one of its parents');
+  if (inside(o, r) && o !== path.join(r, 'dist') && !inside(o, path.join(r, '.builds'))) {
+    refuse('inside the repository only dist/ and .builds/<name>/ are build folders');
+  }
+  if (!fs.existsSync(o)) return;
+  if (!fs.statSync(o).isDirectory()) refuse('it is a file');
+  const entries = fs.readdirSync(o);
+  const previous = entries.includes('404.html') && fs.existsSync(path.join(o, 'assets')) && fs.statSync(path.join(o, 'assets')).isDirectory();
+  if (entries.length && !previous) refuse('the folder is not empty and does not hold a previous build (assets/ + 404.html)');
 }
 
 const KIND = (url) =>
@@ -190,6 +219,7 @@ function renderPage(page, shared, assets) {
 
 async function bundle() {
   const result = await esbuild.build({
+    absWorkingDir: ROOT,
     entryPoints: { main: 'src/js/main.js', style: 'src/css/main.css' },
     outdir: `${OUT}/assets`,
     bundle: true,

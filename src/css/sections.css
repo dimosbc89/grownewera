@@ -95,7 +95,8 @@
   max-height: calc(100svh - var(--header-h) - 64px);
 }
 .story__aside .sec-head { margin-bottom: 0; flex: none; }
-.story__stage { flex: 1 1 380px; min-height: 220px; }
+/* Position lives here, not in three.css (which loads later), so the phone rule below wins. */
+.story__stage { position: relative; flex: 1 1 380px; min-height: 220px; }
 @media (max-width: 900px) {
   /* Phones: the stage becomes a sticky backdrop behind the steps. */
   .story { display: block; }

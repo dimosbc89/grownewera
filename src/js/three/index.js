@@ -25,16 +25,10 @@ export function pickQuality({ motion = true } = {}) {
   return 'high';
 }
 
-function hasWebGL2() {
-  try {
-    const gl = document.createElement('canvas').getContext('webgl2');
-    if (!gl) return false;
-    gl.getExtension('WEBGL_lose_context')?.loseContext();
-    return true;
-  } catch {
-    return false;
-  }
-}
+// Cheap feature test only: creating a probe context costs as much as a real one (hundreds of ms
+// on slow GPUs), so a missing or blocklisted WebGL2 shows up when createStage() asks for its
+// context, and that canvas falls back then.
+const hasWebGL2 = () => typeof WebGL2RenderingContext !== 'undefined';
 
 function fallback(canvas) {
   const heroStage = canvas.closest('.hero__stage');
@@ -57,12 +51,28 @@ export function initThree() {
   const gate = root.classList.contains('is-loading')
     ? new Promise((resolve) => { addEventListener('grow:ready', resolve, { once: true }); setTimeout(resolve, 2500); })
     : null;
+  // Heavy setup (context, environment map, shader compile) waits until the hero intro copy has
+  // landed (`grow:hero-in`, motion/hero.js; after `grow:ready`), so it never holds up the
+  // preloader or stalls the intro, even when a story or CTA canvas is near the top of a short page.
+  // Modules still download right away. Timeouts cover a failed motion layer or a hidden tab.
+  const ready = new Promise((resolve) => {
+    addEventListener('grow:ready', resolve, { once: true });
+    setTimeout(resolve, 4000);
+  });
+  const settled = motion
+    ? new Promise((resolve) => {
+      addEventListener('grow:hero-in', resolve, { once: true });
+      ready.then(() => setTimeout(resolve, 3000));
+      setTimeout(resolve, 8000);
+    })
+    : ready;
   const opts = {
     motion,
     quality,
     finePointer: matchMedia('(hover: hover) and (pointer: fine)').matches,
     autoDrop: !force,
     gate,
+    after: settled,
   };
   root.dataset.gl = quality;
 

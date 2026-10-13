@@ -32,10 +32,20 @@ export function createPost({ renderer, scene, camera, width, height, strength = 
   composer.addPass(new OutputPass());
   const grain = new ShaderPass(GrainShader);
   composer.addPass(grain);
+  const grainAmount = grain.uniforms.uAmount.value;
+  let fade = 0; // bloom and grain ease in over ~1.2s after the plain first frames
+  bloom.strength = 0;
+  grain.uniforms.uAmount.value = 0;
   return {
     composer,
     bloom,
-    render(t) {
+    render(t, dt = 1 / 60) {
+      if (fade < 1) {
+        fade = Math.min(1, fade + dt / 1.2);
+        const k = fade * fade * (3 - 2 * fade);
+        bloom.strength = strength * k;
+        grain.uniforms.uAmount.value = grainAmount * k;
+      }
       grain.uniforms.uTime.value = t;
       composer.render();
     },

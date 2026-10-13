@@ -1,6 +1,13 @@
 /* WebGL layer: canvases and their stages (src/js/three/*). Canvases are decorative
    (aria-hidden) and pointer-transparent; when WebGL is missing three/index.js removes them. */
 canvas[data-scene] { display: block; pointer-events: none; }
+/* Canvases fade in once their first frame is drawn (core.js sets data-ready), the hero's settling
+   from a slight zoom. CSS transitions on the canvas, not GSAP tweens: they run on the compositor and
+   never touch the [data-depth] stage around it. */
+.js.motion canvas[data-scene] { opacity: 0; transition: opacity 1.4s var(--ease); }
+.js.motion canvas[data-scene][data-ready] { opacity: 1; }
+.js.motion .hero__canvas { transform: scale(1.08); transition: opacity 1.6s var(--ease), transform 2.6s var(--ease); }
+.js.motion .hero__canvas[data-ready] { transform: none; }
 
 /* ---------- Hero ---------- */
 .hero__stage { position: absolute; inset: 0; z-index: -1; }
@@ -17,8 +24,9 @@ canvas[data-scene] { display: block; pointer-events: none; }
 }
 
 /* ---------- Scroll story stage ---------- */
+/* position: see sections.css (sticky backdrop on phones) */
 .story__stage {
-  position: relative; overflow: hidden; border: 1px solid var(--line);
+  overflow: hidden; border: 1px solid var(--line);
   background:
     radial-gradient(circle at 50% 55%, rgba(204, 255, 0, 0.06), transparent 62%),
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 48px),
@@ -36,9 +44,37 @@ canvas[data-scene] { display: block; pointer-events: none; }
 }
 .story__stage::before { top: 10px; right: 10px; border-width: 1px 1px 0 0; }
 .story__stage::after { bottom: 10px; right: 10px; border-width: 0 1px 1px 0; }
+/* No WebGL (three/index.js adds .is-static and drops the canvas) or no JS: the same growth story as
+   a CSS bar chart. Bar i fills while the reader passes its share of the steps (--story 0..1, set by
+   motion/pin.js; without JS it stays full). */
+.story__stage.is-static, .no-js .story__stage {
+  --s: var(--story, 1);
+  --track: linear-gradient(rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.07));
+  --fill: linear-gradient(var(--lime), rgba(204, 255, 0, 0.55));
+  padding: 48px 32px 64px 32px;
+  background:
+    var(--fill) 0% 100% / 10% calc(22% * clamp(0, var(--s) * 6, 1)) no-repeat content-box,
+    var(--fill) 20% 100% / 10% calc(37% * clamp(0, var(--s) * 6 - 1, 1)) no-repeat content-box,
+    var(--fill) 40% 100% / 10% calc(52% * clamp(0, var(--s) * 6 - 2, 1)) no-repeat content-box,
+    var(--fill) 60% 100% / 10% calc(67% * clamp(0, var(--s) * 6 - 3, 1)) no-repeat content-box,
+    var(--fill) 80% 100% / 10% calc(82% * clamp(0, var(--s) * 6 - 4, 1)) no-repeat content-box,
+    var(--fill) 100% 100% / 10% calc(97% * clamp(0, var(--s) * 6 - 5, 1)) no-repeat content-box,
+    var(--track) 0% 100% / 10% 22% no-repeat content-box,
+    var(--track) 20% 100% / 10% 37% no-repeat content-box,
+    var(--track) 40% 100% / 10% 52% no-repeat content-box,
+    var(--track) 60% 100% / 10% 67% no-repeat content-box,
+    var(--track) 80% 100% / 10% 82% no-repeat content-box,
+    var(--track) 100% 100% / 10% 97% no-repeat content-box,
+    linear-gradient(rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.16)) 0 100% / 100% 1px no-repeat content-box,
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 48px),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 48px),
+    var(--black);
+}
 @media (max-width: 900px) {
   .story__stage { background: none; border: 0; }
   .story__stage::before, .story__stage::after, .story__hud { display: none; }
+  /* Phones: the static chart is too busy as a backdrop behind the steps. */
+  .story__stage.is-static, .no-js .story__stage { display: none; }
 }
 
 /* ---------- CTA wordmark ---------- */

@@ -47,9 +47,17 @@ export function initReveals() {
     gsap.fromTo(n, { opacity: 0 }, { opacity: 1, duration: 1.4, ease: 'power2.out', scrollTrigger: { trigger: n.parentElement, start: 'top 80%', once: true } });
   }
 
-  // Clip-path wipe (art, map, project shots).
+  // Clip-path wipe (art, map, project shots). Illustrations inside start their own build as the
+  // wipe starts: IntersectionObserver counts the clip, so under a brisk scroll the observer alone
+  // could miss them and leave their layers hidden.
   for (const el of $$('[data-clip]')) {
-    gsap.fromTo(el, { clipPath: 'inset(0% 0% 100% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 1.3, ease: 'expo.inOut', scrollTrigger: { trigger: el, start: 'top 88%', once: true }, onComplete: () => gsap.set(el, { clipPath: 'none' }) });
+    const ills = el.matches('.ill') ? [el] : $$('.ill', el);
+    gsap.fromTo(el, { clipPath: 'inset(0% 0% 100% 0%)' }, {
+      clipPath: 'inset(0% 0% 0% 0%)', duration: 1.3, ease: 'expo.inOut',
+      scrollTrigger: { trigger: el, start: 'top 88%', once: true },
+      onStart: () => ills.forEach(showIll),
+      onComplete: () => gsap.set(el, { clipPath: 'none' }),
+    });
   }
 
   // Footer wordmark rises out of the floor.
@@ -63,12 +71,25 @@ export function initReveals() {
   }
 }
 
-// SVG product shots play their CSS animation once visible.
+// SVG product shots play their CSS animation once visible: 30% in view (or 30% of the viewport
+// for tall ones), or already scrolled past when a fast scroll skipped that moment, so they are
+// never left hidden. ([data-clip] wrappers also start them when their wipe starts, see above.)
+let illObserver = null;
+function showIll(el) {
+  el.classList.add('is-in');
+  illObserver?.unobserve(el);
+}
 function initIllustrations() {
   const ills = $$('.ill');
   if (!motion || !('IntersectionObserver' in window)) { ills.forEach((el) => el.classList.add('is-in')); return; }
-  const io = new IntersectionObserver((entries) => {
-    for (const e of entries) if (e.isIntersecting) { e.target.classList.add('is-in'); io.unobserve(e.target); }
-  }, { threshold: 0.3 });
-  ills.forEach((el) => io.observe(el));
+  illObserver = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      const r = e.boundingClientRect;
+      const top = e.rootBounds?.top ?? 0;
+      const past = r.bottom <= top; // scrolled by above the viewport between two observations
+      const enough = e.intersectionRatio >= 0.3 || e.intersectionRect.height >= innerHeight * 0.3;
+      if (enough || past) showIll(e.target);
+    }
+  }, { threshold: [0, 0.1, 0.2, 0.3] });
+  ills.forEach((el) => illObserver.observe(el));
 }
