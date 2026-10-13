@@ -9,13 +9,17 @@ const run = (name, fn) => {
   try { fn(); return true; } catch (e) { console.warn(`[grow] ${name} failed`, e); return false; }
 };
 
-if (!run('motion', initMotion)) {
-  // Never leave content in its hidden pre-reveal state.
-  root.classList.remove('motion', 'curtain-in', 'is-loading');
-  root.classList.add('no-motion');
+// One boot per document, even if the bundle is evaluated twice.
+if (!window.__growBooted) {
+  window.__growBooted = true;
+  if (!run('motion', initMotion)) {
+    // Never leave content in its hidden pre-reveal state.
+    root.classList.remove('motion', 'curtain-in', 'is-loading');
+    root.classList.add('no-motion', 'motion-failed');
+  }
+  run('three', initThree);
+  run('form', () => initForm(document.querySelector('[data-form]')));
+  run('cookies', initCookies);
 }
-run('three', initThree);
-run('form', () => initForm(document.querySelector('[data-form]')));
-run('cookies', initCookies);
 // Tells the <head> safety net (4s) that the page is alive, so it keeps the motion styles.
 window.__growReady = true;

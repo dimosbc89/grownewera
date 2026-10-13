@@ -1,63 +1,142 @@
-/* Motion-layer states (src/js/motion/*). Initial states only apply with JS + motion allowed, so
-   without JS, with prefers-reduced-motion, or after the 4s <head> safety net, everything shows. */
+/* Motion-layer states and the small UI the motion layer injects (src/js/motion/*). Initial states
+   only apply with JS + motion allowed, so without JS, with prefers-reduced-motion, or after the 4s
+   <head> safety net, everything shows. */
 .js.motion [data-reveal], .js.motion [data-stagger] > *, .js.motion [data-hero-in] { opacity: 0; transform: translateY(28px); }
-.js.motion [data-split] .w-in, .js.motion [data-split='hero'] .w-in { display: inline-block; transform: translateY(105%); }
-.js.motion [data-split='chars'] .w-in { transform: none; }
-.js.motion [data-split='chars'] .c-in { display: inline-block; transform: translateY(105%); }
-[data-split] .w { overflow: hidden; vertical-align: top; padding-bottom: 0.06em; margin-bottom: -0.06em; }
-[data-split] .c { display: inline-block; overflow: hidden; vertical-align: top; }
-.lead[data-scrub] .w { color: rgba(255, 255, 255, 0.16); }
-.no-motion .lead[data-scrub] .w, .no-js .lead .w { color: inherit; }
+/* Stacking cards only fade: their sticky triggers are measured on the cards, so no offset here. */
+.js.motion [data-stack] > * { transform: none; }
+
+/* ---------- Split headings (motion/split.js) ---------- */
+/* Words and chars are masked while they rise; the mask lifts once the heading is in (.is-in), so
+   descenders, accents and the skew never get clipped afterwards. */
+[data-split] .w { display: inline-block; vertical-align: top; overflow: hidden; padding: 0 0.06em 0.1em; margin: 0 -0.06em -0.1em; }
+[data-split] .c { display: inline-block; vertical-align: top; }
+[data-split].is-in .w { overflow: visible; }
 .js.motion [data-split]:not([data-split-done]) { visibility: hidden; }
-.js.motion [data-clip] { clip-path: inset(0% 0% 100% 0%); }
-.js.motion .hero__grid i { transform: scaleY(0); transform-origin: top; }
+.js.motion [data-split] .w-in { display: inline-block; transform: translateY(112%); }
+.js.motion [data-split] .c-in { display: inline-block; transform: translateY(118%); }
+/* Hero title: chars are masked only below (their 3D rise may lean above the line). */
+.hero__title-in { display: block; }
+[data-split='hero'] .w { overflow: visible; }
+.js.motion [data-split='hero'] .c { clip-path: inset(-0.7em -0.25em 0 -0.25em); }
+.js.motion [data-split='hero'].is-in .c { clip-path: none; }
+
+/* Lead paragraph lights up word by word (opacity only). */
+.js.motion .lead[data-scrub] .w { opacity: 0.16; overflow: visible; }
+
+/* ---------- [data-clip]: lime block wipe ---------- */
+.js.motion [data-clip] { position: relative; clip-path: inset(0% 100% 0% 0%); }
+.js.motion [data-clip].is-clipped { clip-path: none; }
+.clip-cover { position: absolute; inset: -1px; z-index: 6; background: var(--lime); pointer-events: none; }
+
+/* ---------- Hero ---------- */
+.js.motion .hero__grid i { transform: scaleY(0); transform-origin: 50% 100%; }
+.js.motion [data-hero] .crumbs li, .js.motion [data-hero] .hero__foot, .js.motion [data-hero] .trust .marquee__track { opacity: 0; }
 
 /* [data-depth]: pointer (--px, --py) and scroll (--sy) parallax via the `translate` property, so
    it composes with GSAP tweens on `transform`. */
 .js.motion [data-depth] { translate: var(--px, 0px) calc(var(--py, 0px) + var(--sy, 0px)); }
 .js.motion .hero [data-depth] { will-change: translate; }
 
+/* Section numerals wipe in (motion/reveals.js); counters keep their width while they run. */
+.js.motion .sec-bgnum { opacity: 0; }
+.js.motion [data-count] { font-variant-numeric: tabular-nums; }
+
+/* Footer wordmark letters (rise out of the floor). layout.css styles every span in the wordmark. */
+.site-footer__word span.fw-c { display: inline-block; font-size: inherit; text-align: left; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
   .grain { display: none; }
 }
+
+/* main.js could not start the motion layer: drop any half-applied hidden state. */
+.motion-failed :is(main, .site-footer) :is([style*='opacity'], [style*='transform'], [style*='clip-path']) { opacity: 1 !important; transform: none !important; clip-path: none !important; }
+
+/* ---------- Page transition: four lime columns + the next page's name ---------- */
 .curtain-in .curtain { transform: none; }
+/* Arrival: the frame (columns + the page name) is rebuilt by motion/transitions.js; until then the
+   lime cover stays blank rather than flashing the centred logo. */
+.js.motion.curtain-in .curtain__logo { visibility: hidden; }
+.curtain.has-cols { background: transparent; }
+.curtain.has-cols .curtain__logo { display: none; }
+.curtain__frame, .curtain__cols { position: absolute; inset: 0; }
+.curtain__col { position: absolute; top: -1px; bottom: -1px; background: var(--lime); will-change: transform; }
+.curtain__col + .curtain__col { box-shadow: inset 1px 0 0 rgba(0, 0, 0, 0.14); }
+.curtain__label {
+  position: absolute; bottom: clamp(24px, 6vh, 64px);
+  left: max(var(--gutter), calc((100% - var(--max)) / 2 + var(--gutter))); right: var(--gutter);
+  display: grid; gap: 14px; color: var(--black);
+}
+.curtain__label[hidden] { display: none; }
+.curtain__path, .curtain__name { display: block; overflow: hidden; }
+.curtain__path > span, .curtain__name > span { display: block; }
+.curtain__path { font-family: var(--font-mono); font-size: var(--fs-mono); letter-spacing: 0.1em; text-transform: uppercase; }
+.curtain__name {
+  font-family: var(--font-display); font-weight: 700; text-transform: uppercase; letter-spacing: -0.045em; line-height: 0.88;
+  font-size: clamp(2.6rem, 1rem + 7.4vw, 8.6rem); max-width: 16ch; padding-bottom: 0.08em; text-wrap: balance; hyphens: manual;
+}
 
 /* ---------- Preloader (first visit per session) ---------- */
 .preloader { display: none; }
 .js.motion.is-loading .preloader {
   position: fixed; inset: 0; z-index: 1150; display: grid; grid-template-rows: 1fr auto;
-  background: var(--black); color: var(--white); clip-path: inset(0% 0% 0% 0%);
-  /* Failsafe if the script never takes over: the page is never held longer than this. */
-  animation: preloader-out 0.3s linear 1.75s forwards;
+  background: var(--black); color: var(--white);
+  /* Failsafe if the script never takes over (motion/preloader.js cancels it when it does). */
+  animation: preloader-out 0.3s linear 2.4s forwards;
 }
+.js.motion.is-loading .preloader.has-cols { background: transparent; }
+.preloader__cols { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+.preloader__col { position: absolute; top: 0; bottom: -2px; background: var(--black); will-change: transform; }
+.preloader__col + .preloader__col { box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.05); }
+.preloader.is-lifting .preloader__col { box-shadow: inset 0 -3px 0 var(--lime); }
 .preloader__mid { display: grid; place-items: center; overflow: hidden; }
 .preloader__word {
-  display: block; font-family: var(--font-display); font-weight: 700; letter-spacing: -0.06em; line-height: 0.85;
+  position: relative; display: block; font-family: var(--font-display); font-weight: 700; letter-spacing: -0.06em; line-height: 0.85;
   font-size: clamp(4.5rem, 2rem + 14vw, 15rem);
 }
+.js.motion .preloader__word:not(.is-split) { visibility: hidden; }
 .preloader__word i { font-style: normal; color: var(--lime); }
+.pl-c { display: inline-block; overflow: hidden; vertical-align: top; padding-bottom: 0.04em; }
+.pl-c-in { display: inline-block; }
+.preloader__wipe { position: absolute; inset: -0.02em -0.06em; background: var(--lime); transform: scaleX(0); transform-origin: 0 50%; }
 .preloader__foot {
   display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: clamp(20px, 3vw, 36px);
   font-family: var(--font-mono); font-size: var(--fs-mono); text-transform: uppercase; letter-spacing: 0.2em; color: var(--grey);
 }
-.preloader__count { font-size: clamp(1.4rem, 1rem + 1.6vw, 2.4rem); letter-spacing: 0; color: var(--white); }
+.preloader__count { font-size: clamp(1.4rem, 1rem + 1.6vw, 2.4rem); letter-spacing: 0; color: var(--white); font-variant-numeric: tabular-nums; }
 .preloader__count b { font-weight: 500; color: var(--lime); }
 .preloader__bar { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--line); }
 .preloader__bar i { display: block; height: 100%; background: var(--lime); transform: scaleX(0); transform-origin: left; }
 @keyframes preloader-out { to { opacity: 0; visibility: hidden; } }
 
-/* ---------- [data-strike]: negatives get a red rule and a spinning ✕ ---------- */
+/* ---------- Cursor states (motion/pointer.js) ---------- */
+.cursor__ring { will-change: transform; }
+.cursor.is-btn .cursor__ring { width: 14px; height: 14px; margin: -7px 0 0 -7px; border-color: var(--lime); }
+.cursor.is-label.is-glyph .cursor__ring { width: 60px; height: 60px; margin: -30px 0 0 -30px; }
+.cursor.is-glyph .cursor__label { font-family: var(--font-display); font-weight: 700; font-size: 1.25rem; letter-spacing: 0; line-height: 1; }
+.cursor.is-dark .cursor__dot { background: var(--black); }
+.cursor.is-dark .cursor__ring { border-color: rgba(0, 0, 0, 0.6); }
+.cursor.is-dark.is-label .cursor__ring { background: var(--black); border-color: var(--black); }
+.cursor.is-dark.is-label .cursor__label { color: var(--lime); }
+
+/* ---------- [data-strike]: the ✕ draws in two red strokes, then a red rule crosses the item ---------- */
 .js.motion [data-strike] { position: relative; }
 .js.motion [data-strike]::before {
   content: ''; position: absolute; left: 0; right: 0; top: -1px; height: 1px; background: var(--red);
-  transform: scaleX(0); transform-origin: left; transition: transform 1s var(--ease);
+  transform: scaleX(0); transform-origin: left; transition: transform 1.1s var(--ease) 0.4s;
 }
 .js.motion [data-strike].is-struck::before { transform: scaleX(1); }
-.js.motion [data-strike] .point__mark, .js.motion [data-strike] .feature__idx {
-  display: inline-block; transform: rotate(-135deg) scale(0); transition: transform 0.7s var(--ease) 0.15s;
+.js.motion [data-strike] .point__mark, .js.motion [data-strike] .feature__idx { position: relative; display: inline-block; width: 0.86em; height: 0.86em; color: transparent; }
+/* Two pen strokes from the left corners: top-left -> bottom-right, then bottom-left -> top-right. */
+.js.motion [data-strike] .point__mark::before, .js.motion [data-strike] .point__mark::after,
+.js.motion [data-strike] .feature__idx::before, .js.motion [data-strike] .feature__idx::after {
+  content: ''; position: absolute; left: 0; top: -1px; width: 1.216em; height: 2px; background: var(--red);
+  transform: rotate(45deg) scaleX(0); transform-origin: 0 50%; transition: transform 0.4s var(--ease-in);
 }
-.js.motion [data-strike].is-struck .point__mark, .js.motion [data-strike].is-struck .feature__idx { transform: none; }
+.js.motion [data-strike] .point__mark::after, .js.motion [data-strike] .feature__idx::after { top: auto; bottom: -1px; transform: rotate(-45deg) scaleX(0); transition-delay: 0.26s; }
+.js.motion [data-strike] .point__mark { margin-top: 6px; }
+.js.motion [data-strike].is-struck .point__mark::before, .js.motion [data-strike].is-struck .feature__idx::before { transform: rotate(45deg) scaleX(1); }
+.js.motion [data-strike].is-struck .point__mark::after, .js.motion [data-strike].is-struck .feature__idx::after { transform: rotate(-45deg) scaleX(1); }
 
 /* ---------- [data-stack]: sticky stacking cards (class added by motion/pin.js) ---------- */
 .grid--stack.is-stacked { display: flex; flex-direction: column; gap: clamp(16px, 2.4vw, 32px); border: 0; }
@@ -77,3 +156,57 @@
   .grid--stack.is-stacked > .card > .card__body { grid-column: auto; grid-row: auto; }
   .grid--stack.is-stacked > .card > .arrow-link { grid-column: auto; }
 }
+
+/* ---------- [data-pin-statement]: key phrases + HUD ---------- */
+.sec--statement .stmt-key {
+  background: linear-gradient(currentColor, currentColor) no-repeat 0 100% / 0% 2px; padding-bottom: 0.08em;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+  transition: color 0.6s var(--ease), background-size 0.9s var(--ease) 0.1s;
+}
+.js.motion .sec--statement .is-current > .stmt-key, .js.motion .sec--statement .is-past > .stmt-key { color: var(--lime); background-size: 100% 2px; }
+.stmt-hud {
+  display: flex; align-items: center; gap: 16px; margin-top: 32px; max-width: 280px;
+  font-family: var(--font-mono); font-size: var(--fs-mono); letter-spacing: 0.08em; color: var(--grey);
+  opacity: 0; transition: opacity 0.5s var(--ease);
+}
+.stmt-hud.is-on { opacity: 1; }
+.stmt-hud__n { display: inline-flex; align-items: baseline; gap: 4px; overflow: hidden; }
+.stmt-hud__n b, .hscroll__count b { display: inline-block; font-family: var(--font-display); font-weight: 700; font-size: 1.6rem; line-height: 1; letter-spacing: -0.02em; color: var(--lime); }
+.stmt-hud__bar, .hscroll__bar { position: relative; flex: 1; height: 1px; background: var(--line-strong); }
+.stmt-hud__bar i, .hscroll__bar i, .story__progress i, .toc__progress i {
+  position: absolute; left: 0; right: 0; top: -0.5px; height: 2px; background: var(--lime); transform: scaleX(0); transform-origin: left;
+}
+
+/* ---------- [data-hscroll]: HUD while pinned, native swipe on touch tablets ---------- */
+.hscroll__hud {
+  position: absolute; z-index: 2; bottom: 18px; left: var(--gutter); width: min(420px, 50vw);
+  display: flex; align-items: center; gap: 18px; pointer-events: none;
+  font-family: var(--font-mono); font-size: var(--fs-mono); letter-spacing: 0.08em; color: var(--grey);
+  opacity: 0; transition: opacity 0.5s var(--ease);
+}
+.hscroll__hud.is-on { opacity: 1; }
+.hscroll__count { display: inline-flex; align-items: baseline; gap: 4px; overflow: hidden; }
+.hscroll__count b { font-size: 1.3rem; }
+.hscroll__hint { transition: opacity 0.4s var(--ease), transform 0.6s var(--ease); }
+.hscroll__hint.is-gone { opacity: 0; transform: translateX(16px); }
+.hscroll.is-swipe { overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: none; }
+.hscroll.is-swipe::-webkit-scrollbar { display: none; }
+.hscroll.is-swipe .hscroll__intro, .hscroll.is-swipe .card--panel { scroll-snap-align: start; }
+
+/* ---------- [data-story]: current step, HUD counter, progress rule ---------- */
+.story__progress { position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; height: 1px; background: var(--line); pointer-events: none; }
+.js.motion [data-story] .story__hud { overflow: hidden; }
+.js.motion [data-story] .story__hud b { display: inline-block; }
+.js.motion [data-story] .step__body { transition: opacity 0.6s var(--ease); }
+.js.motion [data-story] .step:not(.is-active) .step__body { opacity: 0.42; }
+.js.motion [data-story] .step.is-active:not(.is-current) .step__body { opacity: 0.72; }
+@media (max-width: 900px) { .story__progress { display: none; } }
+
+/* ---------- Legal TOC: reading progress on its top rule, current entry nudged ---------- */
+.toc__progress { position: absolute; left: 0; right: 0; top: -1px; height: 1px; pointer-events: none; }
+.js.motion .legal__toc a { transition: color 0.25s, transform 0.45s var(--ease); }
+.js.motion .legal__toc a.is-current { transform: translateX(6px); }
+@media (max-width: 900px) { .js.motion .legal__toc { position: relative; } }
+
+/* ---------- FAQ: the answer is clipped while it opens ---------- */
+.faq__item.is-opening .faq__a { overflow: hidden; }
