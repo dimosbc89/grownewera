@@ -108,6 +108,21 @@ work before `grow:hero-in`.
   and the last step always ends on the set's last shape. A morph (~1.9s, staggered per particle)
   starts when `step` changes; `progress` drives the camera drift.
 
+#### Hero scenes (`scenes/*.js`, helpers in `scenes/_shared.js`, land masks in `scenes/_land.js`)
+
+* A scene may also return `bloom: { strength, radius, threshold }`: its bloom settings for the
+  `high` tier (`createPost()` options). Each scene is tuned to look right with the defaults too.
+* Composition is the scene's job: `frame()` (called from the scene's `resize`) resets the rig to
+  the origin, scales it and shifts the projection with `camera.setViewOffset`, so the object sits
+  right of the measured hero copy on wide canvases (never under it) and above / behind the
+  headline on phones, while the camera is free to orbit. `shiftFrame()` moves that anchor per frame
+  (scroll choreography). The copy edge is read from the text line boxes on resize only.
+* `look()` switches the stage to `THREE.NeutralToneMapping` (ACES turns #ccff00 olive and bleaches
+  bright lime to white); `tuneLights()` rebalances the lights `createStage()` adds.
+* `localPointer()` gives local interactions the pointer in canvas NDC, presence, velocity and touch
+  pulses (window listeners, removed in `dispose()`); core's smoothed pointer still drives the tilt.
+* Still frames (`motion: false`) render the finished state (intros complete), never a half intro.
+
 ## DOM hooks
 
 | Hook | Where (markup) | Consumer | Meaning |
