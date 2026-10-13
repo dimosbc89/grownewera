@@ -42,7 +42,8 @@ export function initForm(form) {
         `Υπηρεσία: ${services || '-'}`, '', data.get('message'),
       ].join('\n');
       location.href = `mailto:${form.dataset.mailto}?subject=${encodeURIComponent('Αίτημα προσφοράς – ' + data.get('name'))}&body=${encodeURIComponent(body)}`;
-      say(form.dataset.success, true);
+      // We can't know whether the email app opened, so don't claim the message was sent.
+      say(`Ανοίγει το email σας με το μήνυμα έτοιμο. Αν δεν άνοιξε, γράψτε μας στο ${form.dataset.mailto} ή καλέστε στο 210 9713335.`, true);
       return;
     }
 
