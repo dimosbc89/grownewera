@@ -2,17 +2,28 @@
 //   npm run copy    re-extract the copy from content/site-copy.docx
 //   npm run build   build to dist/
 //   npm run dev     build, then rebuild on change (serve dist/ with `npm run preview`)
+//   node build.mjs --out <dir>   build somewhere else (parallel work: one dir per agent)
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import * as esbuild from 'esbuild';
 import { loadContent } from './lib/content.mjs';
 import { SITE, SCENES } from './lib/site.mjs';
-import { esc, fmt, flow, section } from './lib/render.mjs';
-import { header, hero, marquee, ctaBand, footer, cookieBanner, form, notFound } from './lib/layout.mjs';
+import { esc, fmt, flow, section, bgnum } from './lib/render.mjs';
+import { header, hero, marquee, ctaBand, footer, cookieBanner, form, notFound, preloader } from './lib/layout.mjs';
 
-const OUT = 'dist';
-const watch = process.argv.includes('--watch');
+const argv = process.argv.slice(2);
+const flag = (name, fallback) => {
+  const i = argv.indexOf(name);
+  return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : fallback;
+};
+const OUT = path.resolve(flag('--out', 'dist'));
+const watch = argv.includes('--watch');
+// The output dir is wiped on every build, so never let it point at the repo, a parent of it or a source dir.
+const CWD = path.resolve('.');
+if (OUT === CWD || CWD.startsWith(OUT + path.sep) || ['src', 'lib', 'content', 'tools', 'docs', 'node_modules'].some((d) => OUT === path.resolve(d) || OUT.startsWith(path.resolve(d) + path.sep))) {
+  throw new Error(`Refusing to build into ${OUT}`);
+}
 
 const KIND = (url) =>
   url === '/' ? 'home'
@@ -72,6 +83,11 @@ function jsonLd(page, faqs) {
   return JSON.stringify({ '@context': 'https://schema.org', '@graph': graph }).replace(/</g, '\\u003c');
 }
 
+// Runs before first paint: js/no-js, motion/no-motion, the page-transition curtain, and the
+// once-per-session preloader (`is-loading`). Safety net: if main.js has not booted after 4s
+// (window.__growReady), fall back to the static, fully visible page.
+const HEAD_SCRIPT = `(function(d){var c=d.classList,s=null;c.replace('no-js','js');var m=!matchMedia('(prefers-reduced-motion: reduce)').matches;c.add(m?'motion':'no-motion');try{s=window.sessionStorage}catch(e){}try{if(s&&s.getItem('grow-curtain')){c.add('curtain-in');s.removeItem('grow-curtain')}else if(m&&s&&!s.getItem('grow-preloaded')){c.add('is-loading')}}catch(e){}setTimeout(function(){if(!window.__growReady){c.remove('motion','curtain-in','is-loading');c.add('no-motion')}},4000)})(document.documentElement)`;
+
 function doc(page, main, shared, assets) {
   const title = page.meta['Title tag'] ?? `${page.name} – GROW Agency`;
   const desc = page.meta['Meta description'] ?? '';
@@ -103,11 +119,12 @@ ${noindex ? '<meta name="robots" content="noindex, follow">' : ''}
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preload" href="${assets.font}" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="${assets.css}">
-<script>(function(d){var c=d.classList;c.replace('no-js','js');c.add(matchMedia('(prefers-reduced-motion: reduce)').matches?'no-motion':'motion');try{if(sessionStorage.getItem('grow-curtain')){c.add('curtain-in');sessionStorage.removeItem('grow-curtain')}}catch(e){}setTimeout(function(){if(!window.__growReady){c.remove('motion','curtain-in');c.add('no-motion')}},4000)})(document.documentElement)</script>
+<script>${HEAD_SCRIPT}</script>
 <script type="module" src="${assets.js}"></script>
 <script type="application/ld+json">${jsonLd(page, page.faqs ?? [])}</script>
 </head>
 <body data-kind="${page.kind}">
+${preloader()}
 ${header(page)}
 <main id="main">
 ${main}
@@ -144,16 +161,16 @@ function renderPage(page, shared, assets) {
     parts.splice(0, 0, `<div class="draft-note" role="note"><span>Σημείωση</span>${page.notes.map((n) => fmt(n)).join(' ')}</div>`);
   }
   if (page.heroExtra?.length) {
-    parts.push(`<section class="sec sec--note"><div class="wrap"><div class="sec-body sec-body--narrow">${flow(page.heroExtra, ctx)}</div></div></section>`);
+    parts.push(`<section class="sec sec--note">${bgnum('00', 0.18)}<div class="wrap"><div class="sec-body sec-body--narrow">${flow(page.heroExtra, ctx)}</div></div></section>`);
   }
 
   if (page.kind === 'legal') {
     const secs = page.sections;
-    parts.push(`<section class="sec sec--legal"><div class="wrap legal">
-      <nav class="legal__toc" aria-label="Περιεχόμενα"><span class="mega__label">Περιεχόμενα</span><ol>
+    parts.push(`<section class="sec sec--legal">${bgnum(secs.length, 0.12)}<div class="wrap legal">
+      <nav class="legal__toc" aria-label="Περιεχόμενα"><span class="mega__label" data-scramble>Περιεχόμενα</span><ol>
         ${secs.map((s, i) => `<li><a href="#l${i + 1}">${esc(s.title)}</a></li>`).join('')}</ol></nav>
       <article class="legal__body prose">
-        ${secs.map((s, i) => `<h2 id="l${i + 1}">${fmt(s.title, ctx)}</h2>${flow(s.blocks.filter((b) => b.t !== 'Heading3'), ctx).replace(/ data-(reveal|stagger|tilt)/g, '')}`).join('\n')}
+        ${secs.map((s, i) => `<h2 id="l${i + 1}">${fmt(s.title, ctx)}</h2>${flow(s.blocks.filter((b) => b.t !== 'Heading3'), ctx).replace(/ data-(reveal|stagger|tilt|strike|scramble)/g, '')}`).join('\n')}
       </article></div></section>`);
   } else {
     let n = 0;

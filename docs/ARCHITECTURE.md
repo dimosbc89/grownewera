@@ -18,6 +18,7 @@ removing a hook is a breaking change: update this file and every consumer in the
 ```
 src/js/main.js              boot only: initMotion(), initThree(), initForm(), initCookies()
 src/js/motion/index.js      initMotion(): runs every motion module in order, returns { lenis, scrollTo }
+src/js/motion/util.js       shared flags (motion, finePointer) and DOM helpers ($, $$, headerH, pad, clamp)
 src/js/motion/smooth.js     Lenis + ScrollTrigger glue (lenis, scrollTo, refresh helpers)
 src/js/motion/split.js      split(el, { mode: 'words' | 'chars' }) -> inner spans
 src/js/motion/header.js     sticky header, progress bar, mega menus, mobile menu
@@ -31,6 +32,8 @@ src/js/motion/transitions.js page transitions (curtain)
 src/js/motion/ui.js         FAQ, filters (+ Flip), counters, legal TOC, [data-scramble], [data-strike]
 src/js/three/index.js       initThree(): finds canvases, picks quality tier, lazy-imports the rest
 src/js/three/core.js        createStage(canvas, opts): renderer, scene, camera, rig, post-processing, loop
+src/js/three/post.js        bloom + grain composer for the `high` tier (lazy-imported by core.js)
+src/js/three/util.js        brand palette, materials, dust, easing, simplex noise, disposeTree
 src/js/three/scenes/*.js    one hero scene per file: helix, bars, orb, panels, blocks, globe
 src/js/three/story.js       scroll-story morphing particles (canvas[data-scene="story"])
 src/js/three/wordmark.js    CTA 3D "GROW." wordmark (canvas[data-scene="wordmark"])
@@ -53,9 +56,17 @@ export default function build(ctx) {
     update(time, scroll, pointer) {}, // scroll: 0..1 progress of the hero leaving the viewport
                                       // pointer: { x, y } in -1..1, smoothed
     dispose() {},                     // optional
+    resize(width, height, ctx) {},    // optional, after the camera aspect is updated
+    setQuality(quality, ctx) {},      // optional, after an automatic tier drop
   };
 }
 ```
+
+`ctx` also carries `canvas` and `invalidate()` (request one redraw; only needed for still frames).
+`time` is seconds of *visible* animation: it stays at 0 while the first-visit preloader covers the
+page and does not advance while the canvas is paused, so intros always play on screen.
+`story.js` and `wordmark.js` export `mount(canvas, opts)` and build on `createStage` with
+`layout: 'center'` (no hero rig offset, no post-processing).
 
 ## DOM hooks
 
@@ -88,10 +99,23 @@ export default function build(ctx) {
 
 ### Events and classes
 
-* `grow:ready` (window): preloader finished (or skipped). Hero intro starts on it.
-* `grow:story` (on the story canvas): see table.
+* `grow:ready` (window): preloader finished (or skipped). Hero intro starts on it. Fired once,
+  asynchronously, so every module has subscribed; inside the motion layer use `onReady(fn)`.
+* `grow:story` (on the story canvas): see table; `detail` also has `set` (the `data-story` value).
+* `grow:story-listen` (on the story canvas, three -> motion): the lazily loaded story module is
+  listening; motion/pin.js replays the current `grow:story` state.
 * `grow:consent` (window): cookie choice.
 * `<html>` classes: `js`, `motion` | `no-motion`, `curtain-in`, `has-cursor`, `is-loading`.
+  `<html data-gl="high|mid|low">` is the starting WebGL tier.
+* State classes set by motion: `.is-stacked` ([data-stack] grid in stacking mode), `.is-struck`
+  ([data-strike] drawn), `.is-statement` (pinned statement active), `.is-active` (step reached).
+* Story markup extras: `[data-story-step]` (HUD step counter inside `.story__stage`), and the
+  `--story` custom property (0..1) on the `[data-story]` wrapper.
+* `[data-depth]` layers move through the CSS `translate` property composed from `--px`/`--py`
+  (pointer, motion/pointer.js) and `--sy` (scroll; motion/hero.js for the hero, motion/pointer.js
+  inside `.ill`). GSAP tweens on `transform` never conflict with it.
+* Canvases get `data-quality` (current tier) and `data-ready` (first frame drawn).
+* sessionStorage: `grow-preloaded` (preloader shown this session), `grow-curtain` (transition).
 
 ## Quality and accessibility rules
 
@@ -100,10 +124,15 @@ export default function build(ctx) {
 * WebGL tiers: `high` (fine pointer, ≥6 cores or unknown) -> post-processing (bloom, grain);
   `mid` (touch / small screens / ≤4 cores) -> no post, DPR ≤ 1.5; `low` (reduced motion) -> still.
   Drop a tier automatically when frames average > 24ms for 2s. Pause every canvas when off-screen
-  or when the tab is hidden.
+  or when the tab is hidden. (A tier reached by dropping keeps animating: `low` then means DPR 1;
+  still frames come from `motion: false`, i.e. reduced motion.) Only the hero mounts at load;
+  story and wordmark canvases mount when they come within one viewport.
 * Animate transforms and opacity only. No layout thrash in scroll handlers.
 
 ## Build
 
 `node build.mjs [--out <dir>] [--watch]`. Agents working in parallel must build into their own
 `--out` directory and serve it with `node tools/serve.mjs --dir <dir> --port <n>`.
+
+Debugging WebGL: `?gl=high|mid|low` forces the starting tier and disables the automatic drop
+(useful in software-GL test browsers, which always drop); `?gl=off` skips WebGL entirely.

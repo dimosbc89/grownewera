@@ -1,13 +1,79 @@
-/* Initial states for JS-driven reveals. Only applied when JS runs and motion is allowed. */
+/* Motion-layer states (src/js/motion/*). Initial states only apply with JS + motion allowed, so
+   without JS, with prefers-reduced-motion, or after the 4s <head> safety net, everything shows. */
 .js.motion [data-reveal], .js.motion [data-stagger] > *, .js.motion [data-hero-in] { opacity: 0; transform: translateY(28px); }
 .js.motion [data-split] .w-in, .js.motion [data-split='hero'] .w-in { display: inline-block; transform: translateY(105%); }
+.js.motion [data-split='chars'] .w-in { transform: none; }
+.js.motion [data-split='chars'] .c-in { display: inline-block; transform: translateY(105%); }
 [data-split] .w { overflow: hidden; vertical-align: top; padding-bottom: 0.06em; margin-bottom: -0.06em; }
+[data-split] .c { display: inline-block; overflow: hidden; vertical-align: top; }
 .lead[data-scrub] .w { color: rgba(255, 255, 255, 0.16); }
 .no-motion .lead[data-scrub] .w, .no-js .lead .w { color: inherit; }
+.js.motion [data-split]:not([data-split-done]) { visibility: hidden; }
+.js.motion [data-clip] { clip-path: inset(0% 0% 100% 0%); }
+.js.motion .hero__grid i { transform: scaleY(0); transform-origin: top; }
+
+/* [data-depth]: pointer (--px, --py) and scroll (--sy) parallax via the `translate` property, so
+   it composes with GSAP tweens on `transform`. */
+.js.motion [data-depth] { translate: var(--px, 0px) calc(var(--py, 0px) + var(--sy, 0px)); }
+.js.motion .hero [data-depth] { will-change: translate; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
   .grain { display: none; }
 }
-.js.motion [data-split]:not([data-split-done]) { visibility: hidden; }
 .curtain-in .curtain { transform: none; }
+
+/* ---------- Preloader (first visit per session) ---------- */
+.preloader { display: none; }
+.js.motion.is-loading .preloader {
+  position: fixed; inset: 0; z-index: 1150; display: grid; grid-template-rows: 1fr auto;
+  background: var(--black); color: var(--white); clip-path: inset(0% 0% 0% 0%);
+  /* Failsafe if the script never takes over: the page is never held longer than this. */
+  animation: preloader-out 0.3s linear 1.75s forwards;
+}
+.preloader__mid { display: grid; place-items: center; overflow: hidden; }
+.preloader__word {
+  display: block; font-family: var(--font-display); font-weight: 700; letter-spacing: -0.06em; line-height: 0.85;
+  font-size: clamp(4.5rem, 2rem + 14vw, 15rem);
+}
+.preloader__word i { font-style: normal; color: var(--lime); }
+.preloader__foot {
+  display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: clamp(20px, 3vw, 36px);
+  font-family: var(--font-mono); font-size: var(--fs-mono); text-transform: uppercase; letter-spacing: 0.2em; color: var(--grey);
+}
+.preloader__count { font-size: clamp(1.4rem, 1rem + 1.6vw, 2.4rem); letter-spacing: 0; color: var(--white); }
+.preloader__count b { font-weight: 500; color: var(--lime); }
+.preloader__bar { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--line); }
+.preloader__bar i { display: block; height: 100%; background: var(--lime); transform: scaleX(0); transform-origin: left; }
+@keyframes preloader-out { to { opacity: 0; visibility: hidden; } }
+
+/* ---------- [data-strike]: negatives get a red rule and a spinning ✕ ---------- */
+.js.motion [data-strike] { position: relative; }
+.js.motion [data-strike]::before {
+  content: ''; position: absolute; left: 0; right: 0; top: -1px; height: 1px; background: var(--red);
+  transform: scaleX(0); transform-origin: left; transition: transform 1s var(--ease);
+}
+.js.motion [data-strike].is-struck::before { transform: scaleX(1); }
+.js.motion [data-strike] .point__mark, .js.motion [data-strike] .feature__idx {
+  display: inline-block; transform: rotate(-135deg) scale(0); transition: transform 0.7s var(--ease) 0.15s;
+}
+.js.motion [data-strike].is-struck .point__mark, .js.motion [data-strike].is-struck .feature__idx { transform: none; }
+
+/* ---------- [data-stack]: sticky stacking cards (class added by motion/pin.js) ---------- */
+.grid--stack.is-stacked { display: flex; flex-direction: column; gap: clamp(16px, 2.4vw, 32px); border: 0; }
+.grid--stack.is-stacked > .card {
+  position: sticky; border: 1px solid var(--line-strong);
+  display: grid; grid-template-columns: minmax(64px, 0.22fr) minmax(0, 1fr) minmax(0, 1.25fr); gap: 14px clamp(24px, 4vw, 64px);
+  align-items: start; min-height: clamp(220px, 34svh, 360px); padding: clamp(28px, 4vw, 56px);
+  box-shadow: 0 -24px 48px rgba(0, 0, 0, 0.55);
+}
+.grid--stack.is-stacked > .card > .card__idx { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.6rem, 1.2rem + 1.6vw, 3rem); letter-spacing: -0.03em; line-height: 0.9; }
+.grid--stack.is-stacked > .card > .card__title { font-size: clamp(1.4rem, 1.1rem + 1.2vw, 2.4rem); line-height: 1.02; }
+.grid--stack.is-stacked > .card > .card__body { grid-column: 3; grid-row: 1 / span 3; }
+.grid--stack.is-stacked > .card > .arrow-link { grid-column: 2; }
+.stack__shade { position: absolute; inset: 0; z-index: 3; background: var(--black); opacity: 0; pointer-events: none; }
+@media (max-width: 900px) {
+  .grid--stack.is-stacked > .card { grid-template-columns: 1fr; }
+  .grid--stack.is-stacked > .card > .card__body { grid-column: auto; grid-row: auto; }
+  .grid--stack.is-stacked > .card > .arrow-link { grid-column: auto; }
+}

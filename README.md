@@ -17,6 +17,9 @@ npm install
 npm run build      # -> dist/
 npm run preview    # serves dist/ on http://localhost:4173
 npm run dev        # rebuilds on every change in src/, lib/, content/
+
+node build.mjs --out .builds/me                    # build somewhere else (one dir per person/agent)
+node tools/serve.mjs --dir .builds/me --port 4310  # serve that build
 ```
 
 `dist/` is a plain static site.
@@ -74,11 +77,14 @@ The page is `lang="el"`, so uppercase headings drop their accents correctly.
 ## Layout of the repo
 
 ```
-content/   site-copy.docx (source), copy.json (extracted)
-lib/       site.mjs (settings, nav, 3D scene per page), content.mjs (doc -> pages),
-           render.mjs (sections), layout.mjs (shell), illustrations.mjs (SVG art)
-src/js/    main.js (motion + UI), scene.js (Three.js heroes), form.js, cookies.js
-src/css/   tokens, base, layout, components, sections, motion
-tools/     extract-copy.py, serve.mjs
-build.mjs  static build
+content/        site-copy.docx (source), copy.json (extracted)
+lib/            site.mjs (settings, nav, 3D scene per page), content.mjs (doc -> pages),
+                render.mjs (sections), layout.mjs (shell), illustrations.mjs (SVG art)
+src/js/         main.js (boot only), form.js, cookies.js
+src/js/motion/  Lenis, preloader, hero, reveals, pins/stories/stacks, marquees, pointer, UI
+src/js/three/   WebGL entry (lazy), core stage, post-processing, scenes/*, story, wordmark
+src/css/        tokens, base, layout, components, sections, three, motion
+tools/          extract-copy.py, serve.mjs
+docs/           ARCHITECTURE.md: the markup / motion / WebGL contract (DOM hooks, events, tiers)
+build.mjs       static build
 ```

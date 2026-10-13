@@ -70,3 +70,46 @@
 /* Projects & articles */
 .card--project .card__title { font-size: 1.35rem; }
 .card--article .card__title { font-size: 1.2rem; line-height: 1.12; }
+
+/* ---------- Section numerals (.sec-bgnum, every .sec) ---------- */
+.sec { isolation: isolate; }
+.sec-bgnum {
+  position: absolute; z-index: -1; top: clamp(28px, 5vw, 72px);
+  right: max(var(--gutter), calc((100% - var(--max)) / 2 + var(--gutter)));
+  font-family: var(--font-display); font-weight: 700; letter-spacing: -0.06em; line-height: 0.8;
+  font-size: clamp(7rem, 3rem + 17vw, 21rem); white-space: nowrap;
+  color: transparent; -webkit-text-stroke: 1px rgba(255, 255, 255, 0.075);
+  pointer-events: none; user-select: none;
+}
+.sec:nth-of-type(even) .sec-bgnum { -webkit-text-stroke-color: rgba(255, 255, 255, 0.09); }
+.hscroll__intro { position: relative; isolation: isolate; }
+.hscroll__intro .sec-bgnum { top: calc(var(--header-h) + 8px); right: clamp(32px, 5vw, 80px); }
+@media (max-width: 760px), (prefers-reduced-motion: reduce) {
+  .hscroll__intro .sec-bgnum { top: -16px; right: 0; }
+}
+
+/* ---------- Scroll story: sticky heading + WebGL stage | steps ([data-story]) ---------- */
+.story__aside {
+  position: sticky; top: calc(var(--header-h) + 32px);
+  display: flex; flex-direction: column; gap: clamp(24px, 3vw, 40px);
+  max-height: calc(100svh - var(--header-h) - 64px);
+}
+.story__aside .sec-head { margin-bottom: 0; flex: none; }
+.story__stage { flex: 1 1 380px; min-height: 220px; }
+@media (max-width: 900px) {
+  /* Phones: the stage becomes a sticky backdrop behind the steps. */
+  .story { display: block; }
+  .story__aside { display: contents; }
+  .story .sec-head { margin-bottom: clamp(32px, 4vw, 56px); }
+  .story__stage {
+    position: sticky; top: calc(var(--header-h) + 8px); z-index: 0;
+    height: 56svh; min-height: 0; margin-bottom: -56svh; opacity: 0.32; pointer-events: none;
+  }
+  .story > .sec-body { position: relative; z-index: 1; }
+}
+
+/* ---------- Pinned statement ([data-pin-statement]) ---------- */
+.sec--statement .sec-body > p {
+  font-family: var(--font-display); font-weight: 500; letter-spacing: -0.012em; line-height: 1.32;
+  font-size: clamp(1.1rem, 0.95rem + 0.6vw, 1.45rem); color: var(--white);
+}
