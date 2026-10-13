@@ -141,6 +141,44 @@ once the first frame is queued (or `null` if the canvas left the page); a reject
   CSS bar chart driven by `--story`; it is hidden on phones, where the stage is only a backdrop.
 * sessionStorage: `grow-preloaded` (preloader shown this session), `grow-curtain` (transition).
 
+### Story sets (`data-story` values, lib/site.mjs `STORIES` / `storySet()`)
+
+| Set | Pages |
+| --- | --- |
+| `growth` | home, and any page not listed below |
+| `ads` | Google Ads, Facebook & Instagram ads, TikTok ads, ChatGPT ads |
+| `seo` | Προώθηση ιστοσελίδων (SEO), Content marketing |
+| `build` | Κατασκευή ιστοσελίδων, Κατασκευή eshop |
+| `social` | Διαχείριση social media, Influencer marketing |
+| `booth` | Εκθεσιακά περίπτερα |
+| `company` | Η εταιρεία |
+| `contact` | Επικοινωνία |
+| `case` | case studies (`/erga/<slug>/`) |
+
+three/story.js must accept every set (falling back to `growth` for one it does not draw yet).
+
+### Markup additions (lib/*, styled in src/css; none is required by motion or WebGL)
+
+* Hero: `.hero--<kind>` (page kind from build.mjs) sets the title scale. `.hero__top` (running head
+  with the breadcrumbs, outside `.hero__inner`), `.hero__foot.hero__data` (aria-hidden mono strip of
+  `.hero__cell` > `.hero__k` + `.hero__v`; keeps `.scroll-cue` and `.coords`), and on pages with a
+  scene `.hero__hud[data-depth]` (viewfinder corners + `.hero__fig` caption around the 3D stage;
+  hidden on phones and when `.hero__stage.is-static`). On desktop the copy column stays within
+  ~60% of the width, so the right ~40% is free for the hero rig.
+* CTA: `.cta__rail` (aria-hidden mono row along the band's bottom) sits outside `.cta__inner`, which
+  holds the copy only (three/wordmark.js measures it). The copy column is ≤ ~13ch / 46ch wide.
+* Story stage extras: `.story__set` (set label) and `.story__bar > i` (progress rule,
+  `scaleX(var(--story))`) inside `.story__stage`.
+* Sections: plain sections alternate `.sec--split` (`.split`, sticky heading) and
+  `.sec--offset` (`.offset` with `.sec-head--offset`: index in a left gutter, heading and body
+  from the fourth column); wide content always takes the offset layout. FAQ summaries hold
+  `.faq__n` (number) + `.faq__q` (question).
+* Illustrations (lib/illustrations.mjs): `illustration(name, small)` with `name` in
+  `search meta tiktok chat seo content web shop calendar influencer booth map dashboard`
+  (`ads`/`social` are aliases). Per-page choice: `ARTS` / `HOME_ARTS` / `PROJECT_ARTS` in
+  lib/site.mjs (wins over build.mjs `ART`). Staged build classes (`.i-pop .i-float .i-bar .i-grow
+  .i-path .i-route .i-dot .i-person .i-score`) are hidden only under `.js.motion` until `.ill.is-in`.
+
 ## Quality and accessibility rules
 
 * `prefers-reduced-motion: reduce` -> no Lenis, no pins/scrubs/parallax, WebGL renders one still
