@@ -3,6 +3,7 @@ import { initMotion } from './motion/index.js';
 import { initThree } from './three/index.js';
 import { initForm } from './form.js';
 import { initCookies } from './cookies.js';
+import { initAnalytics } from './analytics.js';
 
 const root = document.documentElement;
 const run = (name, fn) => {
@@ -31,6 +32,8 @@ if (!window.__growBooted) {
     root.classList.add('no-motion', 'motion-failed');
   }
   run('form', () => initForm(document.querySelector('[data-form]')));
+  // Analytics listens first, so the saved choice that initCookies replays reaches it.
+  run('analytics', initAnalytics);
   run('cookies', initCookies);
 }
 // Tells the <head> safety net (4s) that the page is alive, so it keeps the motion styles.

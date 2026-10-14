@@ -150,6 +150,7 @@ function doc(page, main, shared, assets) {
 ${noindex ? '<meta name="robots" content="noindex, follow">' : ''}
 <link rel="canonical" href="${canonical}">
 ${alternates.join('\n')}
+${SITE.gaId ? `<meta name="ga-id" content="${esc(SITE.gaId)}">` : ''}
 <meta name="theme-color" content="#000000">
 <meta name="color-scheme" content="dark">
 <meta property="og:type" content="${page.kind === 'post' ? 'article' : 'website'}">
