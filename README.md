@@ -60,6 +60,28 @@ The layouts follow the structure, not the placeholders, so filling the slots bef
 every card where it is. The build checks each page kind for the blocks it should have (results,
 testimonials, people, stats) and prints a `[layout]` warning when a copy edit loses one.
 
+## Blog posts
+
+Posts live outside the Word doc, one Markdown file each in `content/posts/<slug>.md`, and are
+built to `/blog/<slug>/`. The blog index lists them (newest first, with the category filter)
+above the doc's topic proposal. A file opens with a front matter block and continues in plain
+Markdown (`##`/`###` headings, paragraphs, `-` and `1.` lists, `>` quotes, `**bold**`, links):
+
+```
+---
+title: Ευκαιρίες Erasmus+ στην GROW Agency
+date: 2026-04-27
+category: Νέα
+excerpt: One or two sentences for the card and the page intro.
+description: Meta description (optional, defaults to the excerpt).
+cover: /images/blog/erasmus-stin-grow-agency.webp   (optional; put the file in src/static/images/blog/)
+source: https://growagency.online/blog/…             (optional; the English original, listed as hreflang="en")
+---
+```
+
+A category that is not in the doc's "Φίλτρα:" line (e.g. Νέα) is added to the filter chips
+automatically. `##` headings make the page's table of contents.
+
 ## Brand
 
 * Colours, type and spacing: `src/css/tokens.css`

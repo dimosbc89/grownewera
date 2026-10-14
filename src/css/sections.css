@@ -227,6 +227,30 @@
   .prose h2 ~ :not(h2) { margin-left: 0; }
 }
 
+/* ---------- Blog post (content/posts/*.md, the legal reading layout) ---------- */
+.post__cover { position: relative; margin: 0 0 clamp(32px, 4vw, 56px); border: 1px solid var(--line); background: var(--panel); }
+.post__cover::after { content: ''; position: absolute; left: -1px; top: -1px; width: 10px; height: 10px; background: var(--lime); }
+.post__cover img { display: block; width: 100%; height: auto; }
+.post__body > p:first-child { font-size: clamp(1.06rem, 0.98rem + 0.36vw, 1.25rem); line-height: 1.55; color: var(--white); }
+.post h3 { margin: 1.5em 0 0.5em; font-family: var(--font-display); font-weight: 600; font-size: var(--fs-h3); line-height: 1.2; color: var(--white); }
+.post h2 + h3 { margin-top: 0.3em; }
+.post p + ul, .post p + ol, .post h3 + p, .post ul + p, .post ol + p, .post blockquote + p, .post hr + p { margin-top: 1em; }
+.post-ul, .post-ol { display: grid; gap: 0; margin: 1.1em 0; border-top: 1px solid var(--line); counter-reset: pl; }
+.post-ul > li, .post-ol > li { position: relative; padding: 12px 0 12px 32px; border-bottom: 1px solid var(--line); }
+.post-ul > li::before { content: ''; position: absolute; left: 0; top: 1.25em; width: 8px; height: 8px; background: var(--lime); }
+.post-ol > li { counter-increment: pl; }
+.post-ol > li::before { content: counter(pl, decimal-leading-zero); position: absolute; left: 0; top: 15px; font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.06em; color: var(--lime); }
+.post li .post-ul { margin: 8px 0 0; border-top: 0; }
+.post li .post-ul > li { padding: 5px 0 5px 18px; border-bottom: 0; font-size: 0.95em; }
+.post li .post-ul > li::before { width: 5px; height: 5px; top: 1.05em; background: var(--grey-2); }
+.post-quote { margin: 1.4em 0; padding: 16px 20px; border-left: 2px solid var(--lime); background: var(--panel); }
+.post-quote p { color: var(--white); }
+.post hr { border: 0; border-top: 1px solid var(--line); margin: 2em 0; }
+.post strong { color: var(--white); }
+.post__foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; margin-top: clamp(40px, 5vw, 72px); padding-top: 20px; border-top: 1px solid var(--line); }
+.post__meta { font-family: var(--font-mono); font-size: var(--fs-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--grey); }
+.post__meta a { color: var(--white); }
+
 /* ---------- Projects & articles ---------- */
 .card--project { gap: 12px; }
 .card--project .card__title { font-size: clamp(1.2rem, 1rem + 0.6vw, 1.5rem); }

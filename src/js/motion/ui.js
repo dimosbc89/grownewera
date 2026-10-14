@@ -103,7 +103,7 @@ function initFilters() {
         empty = document.createElement('p');
         empty.className = 'filters__empty';
         empty.setAttribute('role', 'status');
-        empty.textContent = 'Δεν υπάρχουν ακόμη έργα σε αυτή την κατηγορία.';
+        empty.textContent = list.dataset.empty || 'Δεν υπάρχουν ακόμη έργα σε αυτή την κατηγορία.';
         list.after(empty);
         if (motion) gsap.from(empty, { opacity: 0, y: 12, duration: 0.6, ease: EASE.out, delay: 0.3 });
       } else if (shown && empty) empty.remove();
