@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 import { loadContent, pagesFromBlocks } from './lib/content.mjs';
 import { parseMarkdown } from './lib/markdown.mjs';
+import { loadPosts } from './lib/posts.mjs';
 import { SITE, ARTS, SCENES } from './lib/site.mjs';
 import { esc, fmt, flow, section, bgnum } from './lib/render.mjs';
 import { skipLink, header, hero, marquee, ctaBand, footer, cookieBanner, form, creatorsForm, notFound, preloader } from './lib/layout.mjs';
@@ -67,6 +68,7 @@ const KIND = (url) =>
   : url === '/epikoinonia/' ? 'contact'
   : url === '/blog/' ? 'blog'
   : url === '/creators/' ? 'creators'
+  : url.startsWith('/blog/') ? 'post'
   : 'legal';
 
 function jsonLd(page, faqs) {
@@ -94,6 +96,24 @@ function jsonLd(page, faqs) {
   if (page.kind === 'service' && page.meta['Primary term']) {
     graph.push({ '@type': 'Service', name: page.meta['Primary term'], provider: { '@id': org['@id'] }, areaServed: org.areaServed, url: `${SITE.domain}${page.url}` });
   }
+  if (page.kind === 'post') {
+    const url = `${SITE.domain}${page.url}`;
+    graph.push({
+      '@type': 'BlogPosting',
+      '@id': `${url}#post`,
+      headline: page.post.title,
+      description: page.post.description,
+      datePublished: page.post.date,
+      dateModified: page.post.date,
+      inLanguage: 'el',
+      url,
+      mainEntityOfPage: url,
+      ...(page.post.cover ? { image: `${SITE.domain}${page.post.cover}` } : {}),
+      author: { '@id': org['@id'] },
+      publisher: { '@id': org['@id'] },
+      isPartOf: { '@type': 'Blog', '@id': `${SITE.domain}/blog/#blog`, name: 'GROW Agency Blog' },
+    });
+  }
   if (faqs.length) {
     graph.push({
       '@type': 'FAQPage',
@@ -116,10 +136,12 @@ function doc(page, main, shared, assets) {
   // The hero scene's module graph, preloaded by three/index.js on the `high` tier.
   const scene = page.url == null ? 'blocks' : SCENES[page.url];
   const glPreload = scene ? assets.gl[scene] : null;
-  // Only the home page has an English equivalent (the international site's home); the other
-  // pages list the Greek self-reference alone.
+  // The home page (the international site's home) and posts translated from it have an English
+  // equivalent; the other pages list the Greek self-reference alone.
   const alternates = [`<link rel="alternate" hreflang="el" href="${canonical}">`];
-  if (page.url === '/') alternates.push(`<link rel="alternate" hreflang="en" href="${SITE.internationalSite}/">`);
+  const en = page.url === '/' ? `${SITE.internationalSite}/` : page.post?.source;
+  if (en) alternates.push(`<link rel="alternate" hreflang="en" href="${esc(en)}">`);
+  const ogImage = page.post?.cover ? `${SITE.domain}${page.post.cover}` : `${SITE.domain}/og.png`;
   return `<!doctype html>
 <html lang="el" class="no-js${SITE.showDrafts ? ' show-drafts' : ''}">
 <head>
@@ -130,15 +152,17 @@ function doc(page, main, shared, assets) {
 ${noindex ? '<meta name="robots" content="noindex, follow">' : ''}
 <link rel="canonical" href="${canonical}">
 ${alternates.join('\n')}
+${SITE.gaId ? `<meta name="ga-id" content="${esc(SITE.gaId)}">` : ''}
 <meta name="theme-color" content="#000000">
 <meta name="color-scheme" content="dark">
-<meta property="og:type" content="website">
+<meta property="og:type" content="${page.kind === 'post' ? 'article' : 'website'}">
 <meta property="og:locale" content="el_GR">
 <meta property="og:site_name" content="GROW Agency">
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(desc)}">
 <meta property="og:url" content="${canonical}">
-<meta property="og:image" content="${SITE.domain}/og.png">
+<meta property="og:image" content="${ogImage}">
+${page.kind === 'post' ? `<meta property="article:published_time" content="${page.post.date}">` : ''}
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.png" type="image/png" sizes="192x192">
@@ -185,7 +209,7 @@ function renderPage(page, shared, assets) {
   }
 
   const parts = [hero(page, ctx)];
-  if (page.kind !== 'legal') parts.push(marquee(page.meta.Punchline ?? page.hero?.Eyebrow));
+  if (page.kind !== 'legal' && page.kind !== 'post') parts.push(marquee(page.meta.Punchline ?? page.hero?.Eyebrow));
   if (SITE.showDrafts && page.notes.length) {
     parts.splice(0, 0, `<div class="draft-note" role="note"><span>Σημείωση</span>${page.notes.map((n) => fmt(n)).join(' ')}</div>`);
   }
@@ -201,6 +225,21 @@ function renderPage(page, shared, assets) {
       <article class="legal__body prose">
         ${secs.map((s, i) => `<h2 id="l${i + 1}">${fmt(s.title, ctx)}</h2>${flow(s.blocks.filter((b) => b.t !== 'Heading3'), ctx).replace(/ data-(reveal|stagger|tilt|strike|scramble)/g, '')}`).join('\n')}
       </article></div></section>`);
+  } else if (page.kind === 'post') {
+    // Blog post: the legal pages' reading layout (sticky contents + numbered h2s), with the
+    // cover above the text and a link back to the index below it.
+    const p = page.post;
+    parts.push(`<section class="sec sec--legal sec--post">${bgnum(p.toc.length || 1, 0.12)}<div class="wrap legal">
+      <nav class="legal__toc" aria-label="Περιεχόμενα"><span class="mega__label" data-scramble>Περιεχόμενα</span><ol>
+        ${p.toc.map(([id, t]) => `<li><a href="#${id}">${esc(t)}</a></li>`).join('')}</ol></nav>
+      <article class="legal__body prose post">
+        ${p.cover ? `<figure class="post__cover" data-clip><img src="${esc(p.cover)}" alt="${esc(p.coverAlt)}" width="1600" height="900" loading="eager" fetchpriority="high"></figure>` : ''}
+        <div class="post__body">${p.html}</div>
+        <footer class="post__foot">
+          <span class="post__meta">Δημοσιεύθηκε <time datetime="${p.date}">${esc(p.dateText)}</time>${p.source ? ` · <a href="${esc(p.source)}" hreflang="en" rel="noopener">Read it in English</a>` : ''}</span>
+          <a class="arrow-link" href="/blog/">Όλα τα άρθρα<span class="arrow" aria-hidden="true">→</span></a>
+        </footer>
+      </article></div></section>`);
   } else {
     let n = 0;
     for (const s of page.sections) {
@@ -212,7 +251,7 @@ function renderPage(page, shared, assets) {
     }
   }
 
-  const band = page.cta ?? { team: shared.bands[0], blog: shared.bands[1], legal: shared.bands[2] }[page.kind];
+  const band = page.cta ?? { team: shared.bands[0], blog: shared.bands[1], post: shared.bands[1], legal: shared.bands[2] }[page.kind];
   parts.push(ctaBand(band, page, ctx));
   const html = parts.join('\n');
   checkLayout(page, html);
@@ -297,9 +336,36 @@ async function build() {
   for (const f of fs.readdirSync('content').filter((n) => n.endsWith('.md')).sort()) {
     pages.push(...pagesFromBlocks(parseMarkdown(fs.readFileSync(path.join('content', f), 'utf8'))));
   }
+  const posts = loadPosts('content/posts');
+
+  // Published posts open the blog index (after the doc's filter section, which feeds their
+  // filter bar); the doc's topic proposal follows them.
+  const blog = pages.find((p) => p.url === '/blog/');
+  if (blog && posts.length) {
+    const i = blog.sections.findIndex((s) => /^Τα πρώτα 12 άρθρα/.test(s.title));
+    const proposal = i >= 0 ? blog.sections.splice(i, 1) : [];
+    const at = blog.sections.findIndex((s) => /^(Φίλτρα|Κατηγορίες)$/.test(s.title)) + 1;
+    blog.sections.splice(at, 0, { title: 'Τα άρθρα μας', blocks: [], posts }, ...proposal);
+  }
+
   for (const page of pages) {
     if (!page.url) throw new Error(`Page "${page.name}" has no URL in its SEO table`);
     write(path.join(OUT, page.url, 'index.html'), renderPage(page, shared, assets));
+  }
+  for (const post of posts) {
+    const page = {
+      name: post.title,
+      url: post.url,
+      post,
+      meta: { 'Title tag': `${post.title} – GROW Agency`, 'Meta description': post.description, H1: post.title },
+      hero: { Eyebrow: post.category, H1: post.title, 'Εισαγωγή': post.excerpt },
+      updatedTop: `${post.dateText} · ${post.minutes} λεπτ${post.minutes === 1 ? 'ό' : 'ά'} ανάγνωσης`,
+      notes: [],
+      sections: [],
+      cta: null,
+    };
+    write(path.join(OUT, post.url, 'index.html'), renderPage(page, shared, assets));
+    pages.push(page);
   }
   const notFoundMeta = { 'Title tag': 'Η σελίδα δεν βρέθηκε – GROW Agency', 'Meta description': shared.notFound._[0] ?? '' };
   write(path.join(OUT, '404.html'), doc({ name: '404', meta: notFoundMeta, kind: '404', url: null }, notFound(shared), shared, assets));

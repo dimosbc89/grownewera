@@ -5,6 +5,7 @@ import { initThree } from './three/index.js';
 import { initForm } from './form.js';
 import { initCreatorsForm } from './creators-form.js';
 import { initCookies } from './cookies.js';
+import { initAnalytics } from './analytics.js';
 
 const root = document.documentElement;
 const run = (name, fn) => {
@@ -37,6 +38,8 @@ if (!window.__growBooted) {
     if (form?.dataset.form === 'creators') initCreatorsForm(form);
     else initForm(form);
   });
+  // Analytics listens first, so the saved choice that initCookies replays reaches it.
+  run('analytics', initAnalytics);
   run('cookies', initCookies);
 }
 // Tells the <head> safety net (4s) that the page is alive, so it keeps the motion styles.
