@@ -3,10 +3,10 @@
 // here the visitor's email app opens with the message pre-filled, so no lead is lost.
 // Errors: each invalid field gets an inline message (aria-describedby, text from the form's
 // data-err-* attributes) and stays red until it is valid; the status line under the button sums up
-// and clears itself once everything is fixed.
-export function initForm(form) {
-  if (!form) return;
-  form.noValidate = true; // our own messages replace the browser's bubbles (set here, so no-JS keeps native checks)
+// and clears itself once everything is fixed. The helpers (statusLine, marker, showProblem) are
+// shared with the creators form (creators-form.js).
+// Status line under the button: `say(text, ok)` and `clearStatus()` (clears an error summary).
+export function statusLine(form) {
   const status = form.querySelector('.form__status');
   const say = (msg, ok) => {
     status.textContent = msg;
@@ -17,31 +17,31 @@ export function initForm(form) {
     status.textContent = '';
     status.className = 'form__status';
   };
+  return { say, clearStatus };
+}
 
-  const problem = (el) => {
-    if (el.type === 'checkbox') return el.checked ? '' : 'consent';
-    if (!el.value.trim()) return 'required';
-    if (el.type === 'email' && !/^\S+@\S+\.\S+$/.test(el.value.trim())) return 'email';
-    return '';
-  };
+// Inline field errors. `message(kind)` reads the form's data-err-<kind>; `mark(el, kind, text)`
+// flags a control (or a whole fieldset: chip groups, the channel block of the creators form) with
+// `.is-invalid` on its .field / .check wrapper and a `.field__err` message (aria-describedby), or
+// clears it when `kind` is empty. Shared by form.js and creators-form.js.
+export function marker(form) {
   const message = (kind) => form.dataset[`err${kind[0].toUpperCase()}${kind.slice(1)}`] || form.dataset.errRequired || '';
-
-  // Marks one field valid / invalid, with its inline message.
-  const mark = (el, kind) => {
+  const mark = (el, kind, text = kind ? message(kind) : '') => {
     const wrap = el.closest('.field, .check');
     if (!wrap) return;
-    const id = `${el.name || 'field'}-err`;
-    let err = wrap.querySelector('.field__err');
+    const group = el.tagName === 'FIELDSET';
+    const id = `${el.name || el.id || 'field'}-err`;
+    let err = wrap.querySelector(':scope > .field__err');
     wrap.classList.toggle('is-invalid', !!kind);
     if (kind) {
-      el.setAttribute('aria-invalid', 'true');
+      if (!group) el.setAttribute('aria-invalid', 'true');
       if (!err) {
         err = document.createElement('span');
         err.className = 'field__err';
         err.id = id;
         wrap.append(err);
       }
-      err.textContent = message(kind);
+      err.textContent = text;
       const ids = new Set((el.getAttribute('aria-describedby') || '').split(' ').filter(Boolean));
       ids.add(id);
       el.setAttribute('aria-describedby', [...ids].join(' '));
@@ -52,6 +52,31 @@ export function initForm(form) {
       if (ids.length) el.setAttribute('aria-describedby', ids.join(' '));
       else el.removeAttribute('aria-describedby');
     }
+  };
+  return { mark, message };
+}
+
+// Brings the first problem into view, with room above it for the label (the header is fixed).
+export function showProblem(first) {
+  const target = first.closest('.field, .check') ?? first;
+  const top = target.getBoundingClientRect().top;
+  const header = document.querySelector('[data-header]')?.offsetHeight ?? 72;
+  if (top < header + 16 || top > innerHeight * 0.7) {
+    window.scrollTo({ top: Math.max(0, scrollY + top - header - 32), behavior: 'auto' });
+  }
+}
+
+export function initForm(form) {
+  if (!form) return;
+  form.noValidate = true; // our own messages replace the browser's bubbles (set here, so no-JS keeps native checks)
+  const { say, clearStatus } = statusLine(form);
+  const { mark } = marker(form);
+
+  const problem = (el) => {
+    if (el.type === 'checkbox') return el.checked ? '' : 'consent';
+    if (!el.value.trim()) return 'required';
+    if (el.type === 'email' && !/^\S+@\S+\.\S+$/.test(el.value.trim())) return 'email';
+    return '';
   };
 
   const required = () => [...form.querySelectorAll('[required]')];
@@ -83,13 +108,7 @@ export function initForm(form) {
     if (first) {
       say('Συμπληρώστε τα πεδία που λείπουν.', false);
       first.focus({ preventScroll: true });
-      // The first problem in view, with room above it for the label (the header is fixed).
-      const target = first.closest('.field, .check') ?? first;
-      const top = target.getBoundingClientRect().top;
-      const header = document.querySelector('[data-header]')?.offsetHeight ?? 72;
-      if (top < header + 16 || top > innerHeight * 0.7) {
-        window.scrollTo({ top: Math.max(0, scrollY + top - header - 32), behavior: 'auto' });
-      }
+      showProblem(first);
       return;
     }
     clearStatus();

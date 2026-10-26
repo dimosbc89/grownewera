@@ -1,7 +1,9 @@
-// Boot only. Motion: src/js/motion/*, WebGL: src/js/three/* (lazy), contract: docs/ARCHITECTURE.md.
+// Boot only. Motion: src/js/motion/*, WebGL: src/js/three/* (lazy), forms: form.js (contact) and
+// creators-form.js ([data-form="creators"]), contract: docs/ARCHITECTURE.md.
 import { initMotion } from './motion/index.js';
 import { initThree } from './three/index.js';
 import { initForm } from './form.js';
+import { initCreatorsForm } from './creators-form.js';
 import { initCookies } from './cookies.js';
 
 const root = document.documentElement;
@@ -30,7 +32,11 @@ if (!window.__growBooted) {
     root.classList.remove('motion', 'curtain-in', 'is-loading');
     root.classList.add('no-motion', 'motion-failed');
   }
-  run('form', () => initForm(document.querySelector('[data-form]')));
+  run('form', () => {
+    const form = document.querySelector('[data-form]');
+    if (form?.dataset.form === 'creators') initCreatorsForm(form);
+    else initForm(form);
+  });
   run('cookies', initCookies);
 }
 // Tells the <head> safety net (4s) that the page is alive, so it keeps the motion styles.

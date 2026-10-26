@@ -1,4 +1,4 @@
-// Static site build: content/copy.json -> dist/**/index.html, plus bundled JS/CSS.
+// Static site build: content/copy.json (+ content/*.md) -> dist/**/index.html, plus bundled JS/CSS.
 //   npm run copy    re-extract the copy from content/site-copy.docx
 //   npm run build   build to dist/
 //   npm run dev     build, then rebuild on change (serve dist/ with `npm run preview`)
@@ -8,10 +8,11 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
-import { loadContent } from './lib/content.mjs';
+import { loadContent, pagesFromBlocks } from './lib/content.mjs';
+import { parseMarkdown } from './lib/markdown.mjs';
 import { SITE, ARTS, SCENES } from './lib/site.mjs';
 import { esc, fmt, flow, section, bgnum } from './lib/render.mjs';
-import { skipLink, header, hero, marquee, ctaBand, footer, cookieBanner, form, notFound, preloader } from './lib/layout.mjs';
+import { skipLink, header, hero, marquee, ctaBand, footer, cookieBanner, form, creatorsForm, notFound, preloader } from './lib/layout.mjs';
 
 const argv = process.argv.slice(2);
 const flag = (name, fallback) => {
@@ -65,6 +66,7 @@ const KIND = (url) =>
   : url === '/etaireia/omada/' ? 'team'
   : url === '/epikoinonia/' ? 'contact'
   : url === '/blog/' ? 'blog'
+  : url === '/creators/' ? 'creators'
   : 'legal';
 
 function jsonLd(page, faqs) {
@@ -169,7 +171,7 @@ ${footer(shared, page)}
 function renderPage(page, shared, assets) {
   page.kind = KIND(page.url);
   page.art = ARTS[page.url]; // illustration per page: lib/site.mjs
-  const ctx = { url: page.url, kind: page.kind, filters: [], form: (blocks) => form(shared, blocks) };
+  const ctx = { url: page.url, kind: page.kind, filters: [], form: (blocks) => form(shared, blocks), creatorsForm: (blocks) => creatorsForm(shared, blocks) };
 
   // FAQ entries for structured data.
   page.faqs = [];
@@ -226,6 +228,7 @@ const EXPECT = {
   case: { 'card--quote': 'the testimonial card (Τι είπε ο πελάτης)' },
   company: { 'class="stat"': 'stat tiles (Η GROW σε αριθμούς)' },
   team: { 'card--person': 'person cards (Τα πρόσωπα)' },
+  creators: { 'form--creators': 'the creators form (Φόρμα creators)', 'class="steps"': 'the step timeline (Πώς δουλεύει)', 'class="faq"': 'the FAQ accordion' },
 };
 function checkLayout(page, html) {
   for (const [needle, what] of Object.entries(EXPECT[page.kind] ?? {})) {
@@ -290,6 +293,10 @@ async function build() {
   fs.rmSync(OUT, { recursive: true, force: true });
   const assets = await bundle();
   const { pages, shared } = loadContent('content/copy.json');
+  // Pages outside the Word doc: one content/*.md file per page (lib/markdown.mjs), after the doc's.
+  for (const f of fs.readdirSync('content').filter((n) => n.endsWith('.md')).sort()) {
+    pages.push(...pagesFromBlocks(parseMarkdown(fs.readFileSync(path.join('content', f), 'utf8'))));
+  }
   for (const page of pages) {
     if (!page.url) throw new Error(`Page "${page.name}" has no URL in its SEO table`);
     write(path.join(OUT, page.url, 'index.html'), renderPage(page, shared, assets));

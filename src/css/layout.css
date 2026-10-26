@@ -324,6 +324,9 @@
 .cta .btn--ghost .btn__icon { border-left-color: var(--black); }
 .cta .btn--ghost:hover { background: var(--black); color: var(--lime); }
 .cta a:not(.btn) { text-decoration: underline; text-underline-offset: 3px; }
+/* One English line for creators abroad (the creators page), like the footer's international line. */
+.cta__intl { margin-top: 32px; max-width: 46ch; font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.04em; line-height: 1.6; color: rgba(0, 0, 0, 0.66); }
+.cta__intl a { color: var(--black); }
 @media (max-width: 900px) {
   .cta__rail span:nth-child(2) { display: none; }
 }

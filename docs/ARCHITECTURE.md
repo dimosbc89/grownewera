@@ -16,7 +16,9 @@ removing a hook is a breaking change: update this file and every consumer in the
 ## Module layout
 
 ```
-src/js/main.js              boot only: initMotion(), initThree(), initForm(), initCookies()
+src/js/main.js              boot only: initMotion(), initThree(), initForm() / initCreatorsForm(), initCookies()
+src/js/form.js              contact form; shared helpers (statusLine, marker, showProblem)
+src/js/creators-form.js     creator sign-up form ([data-form="creators"]): chip groups, channel rows, mail body
 src/js/motion/index.js      initMotion(): runs every motion module in order (two phases), returns { lenis, scrollTo }
 src/js/motion/util.js       shared flags (motion, finePointer) and DOM helpers ($, $$, headerH, pad, clamp)
 src/js/motion/ease.js       CustomEase curves shared by every module (`EASE`)
@@ -212,7 +214,7 @@ work before `grow:hero-in`.
 | `ads` | Google Ads, Facebook & Instagram ads, TikTok ads, ChatGPT ads |
 | `seo` | Προώθηση ιστοσελίδων (SEO), Content marketing |
 | `build` | Κατασκευή ιστοσελίδων, Κατασκευή eshop |
-| `social` | Διαχείριση social media, Influencer marketing |
+| `social` | Διαχείριση social media, Influencer marketing, Για creators |
 | `booth` | Εκθεσιακά περίπτερα |
 | `company` | Η εταιρεία |
 | `contact` | Επικοινωνία |
@@ -231,10 +233,28 @@ three/story.js must accept every set (falling back to `growth` for one it does n
   without JS; form.js sets `noValidate` and handles both). `data-err-required|email|consent` hold
   the inline messages: an invalid field gets `.is-invalid`, `aria-invalid`, a `.field__err`
   (`aria-describedby`) and stays red until it is valid; the status line clears once all are.
+* Creators form (`/creators/`, `form#creators-form[data-form="creators"]`, lib/layout.mjs
+  `creatorsForm()`, fields from lib/creators.mjs): the same contract, run by creators-form.js.
+  Extra hooks: `.fgroup[data-group="01"][data-label]` per numbered group (`[data-form-step]` in
+  `.form__progress` shows the current one on desktop); `fieldset[data-chips][data-label]` chip
+  groups (`data-required`: at least one checked, `.field--single` = radios, error text
+  `data-err-choice` / `data-err-choices` on the form); `fieldset[data-channels]` with one
+  `[data-chrow][data-label]` per platform holding `[data-handle]` and `[data-followers]` inputs
+  (`ch_<key>`, `ch_<key>_followers`, plus `ch_other_name`), valid once one row has both, error
+  text from its `data-err-channel`. `data-subject` is the mail subject stem; the form dispatches
+  `grow:form-mail` (`detail { subject, body }`) before opening the email app. Errors on a
+  fieldset carry no `aria-invalid` (only `aria-describedby`). Labels for the mail body come from
+  `data-label`, never from the `[data-scramble]` text.
 * `.draft-note` (drafts only) sets `--note-h` on `<html>` (main.js measures it); the hero below it
   sizes its first screen and viewfinder with it.
 * Result cards keep the `[DEMO n]` marker visible (in their tag) while `SITE.showDrafts` is on.
 
+* Page kinds (build.mjs `KIND`): `home services service solution works case company team contact
+  blog creators legal` (+ `404`). `creators` is `/creators/` (content/creators.md): hero data
+  cells `Reply` / `Cost`, buttons that stay on the page (`#creators-form`, the steps section's
+  `#sN` via render.mjs `sectionAnchor()`; the CTA's "Γράψτε μας" is a `mailto:` with a ✉ icon),
+  the `## Φόρμα creators` section rendered by `creatorsForm()`, and `.cta__intl` (`lang="en"`)
+  for the CTA's "Διεθνείς creators" line.
 * Hero: `.hero--<kind>` (page kind from build.mjs) sets the title scale. `.hero__top` (running head
   with the breadcrumbs, outside `.hero__inner`), `.hero__foot.hero__data` (aria-hidden mono strip of
   `.hero__cell` > `.hero__k` + `.hero__v`; keeps `.scroll-cue` and `.coords`), and on pages with a
@@ -285,7 +305,10 @@ three/story.js must accept every set (falling back to `growth` for one it does n
 
 ## Build
 
-`node build.mjs [--out <dir>] [--watch]`. Fonts: `src/css/fonts.css` declares only the Greek +
+`node build.mjs [--out <dir>] [--watch]`. Pages come from `content/copy.json` (the doc) and then
+every `content/*.md` (lib/markdown.mjs -> the same block list -> lib/content.mjs
+`pagesFromBlocks()`), so a Markdown page gets the same section layouts, FAQ structured data,
+sitemap entry and breadcrumbs as a doc page. Fonts: `src/css/fonts.css` declares only the Greek +
 Latin subsets (6 files); the Greek heading face (Manrope), Space Grotesk Latin and Inter Greek +
 Latin are preloaded. The build warns (`[layout] …`) when a page kind loses a block it is expected
 to render (result cards, testimonials, people, stats). Agents working in parallel must build into their own

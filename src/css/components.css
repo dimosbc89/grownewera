@@ -343,6 +343,62 @@ tbody tr:last-child td { border-bottom: 0; }
 .form.is-sending button[type='submit'] { opacity: 0.6; pointer-events: none; }
 @media (max-width: 640px) { .form__grid { grid-template-columns: 1fr; } }
 
+/* ---------- Creators form (/creators/, lib/layout.mjs creatorsForm, src/js/creators-form.js) ----------
+   Six numbered groups on thin rules, the same fields and chips as the contact form (chips in
+   radio mode take a diamond marker), lime asterisks on required fields, a compact channel table
+   (platform | handle or link | followers) whose rows wrap on phones, and a sticky "03 / 06"
+   progress pill on desktop. */
+.sr { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
+.req { color: var(--lime); font-weight: 700; margin-left: 0.25em; }
+.form--creators { padding-top: clamp(22px, 2.8vw, 36px); }
+.form__legend { font-family: var(--font-mono); font-size: var(--fs-mono); color: var(--grey-2); letter-spacing: 0.06em; text-transform: uppercase; line-height: 1.4; }
+.form__legend .req { margin: 0 0.4em 0 0; }
+.form__progress { position: sticky; top: calc(var(--header-h) + 16px); z-index: 3; height: 0; }
+.form__progress span {
+  position: absolute; right: 0; top: 0; display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px;
+  border: 1px solid var(--line-strong); background: var(--panel); font-family: var(--font-mono); font-size: var(--fs-mono); letter-spacing: 0.1em; color: var(--grey);
+}
+.form__progress b { font-weight: 500; color: var(--lime); }
+@media (max-width: 900px) { .form__progress { display: none; } }
+.fgroup { padding: clamp(28px, 3.4vw, 44px) 0 clamp(32px, 3.8vw, 52px); border-top: 1px solid var(--line); }
+.form__legend + .fgroup { margin-top: 22px; }
+.fgroup--consent { padding-bottom: 0; }
+.fgroup__head { display: grid; grid-template-columns: 84px minmax(0, 1fr); column-gap: 20px; align-items: start; margin-bottom: clamp(24px, 2.8vw, 36px); }
+.fgroup__n { font-family: var(--font-mono); font-size: var(--fs-mono); color: var(--lime); letter-spacing: 0.1em; padding-top: 0.5em; white-space: nowrap; }
+.fgroup__t { font-size: clamp(1.3rem, 1.1rem + 0.7vw, 1.75rem); letter-spacing: -0.025em; line-height: 1; }
+.fgroup__hint { margin-top: 10px; font-size: 0.92rem; line-height: 1.5; color: var(--grey); max-width: 58ch; }
+.field__in { position: relative; display: block; }
+.field__hint { font-size: 0.82rem; line-height: 1.45; color: var(--grey-2); }
+.form--creators .form__grid { align-items: start; } /* a hint under one field never pushes its neighbour's error down */
+.form--creators .field { gap: 6px; }
+.form--creators fieldset.field { border: 0; min-width: 0; }
+.form--creators .field__l { display: block; }
+.form--creators .field--chips .field__hint { margin-top: -2px; }
+.form--creators:has(.field__err) .form__grid { row-gap: 50px; }
+/* Radio chips: one answer, a diamond marker instead of the checkbox square. */
+.opts--single .opt span::before { width: 5px; height: 5px; transform: rotate(45deg); }
+/* Channel table */
+.channels { position: relative; }
+.chrows { border-top: 1px solid var(--line); margin-top: 6px; }
+.chrow { display: grid; grid-template-columns: minmax(124px, 0.9fr) minmax(0, 2fr) minmax(104px, 0.9fr); column-gap: clamp(16px, 2vw, 28px); align-items: stretch; }
+.chrow--head { padding: 12px 0 6px; font-family: var(--font-mono); font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--grey-2); }
+.chrow__name {
+  display: flex; align-items: center; padding: 10px 0 12px; border-bottom: 1px solid var(--line);
+  font-family: var(--font-display); font-weight: 600; text-transform: uppercase; font-size: 0.86rem; letter-spacing: 0.02em;
+}
+.chrow .field { gap: 0; justify-content: flex-end; }
+.chrow .field input { font-size: 1rem; border-bottom-color: var(--line); }
+.chrow .field input::placeholder { color: var(--grey-2); }
+.chrow .chrow__name-in { font-family: var(--font-display); font-weight: 600; text-transform: uppercase; font-size: 0.86rem; letter-spacing: 0.02em; }
+.chrow .chrow__name-in::placeholder { font-family: var(--font-body); font-weight: 400; text-transform: none; font-size: 0.9rem; letter-spacing: 0; }
+@media (max-width: 640px) {
+  .chrow { grid-template-columns: minmax(0, 1.5fr) minmax(96px, 1fr); column-gap: 16px; padding-bottom: 10px; }
+  .chrow--head { display: none; }
+  .chrow__name, .chrow--other > .field:first-child { grid-column: 1 / -1; }
+  .chrow__name { padding: 16px 0 0; border-bottom: 0; font-size: 0.8rem; color: var(--grey); }
+  .chrow--other > .field:first-child { margin-top: 10px; }
+}
+
 /* ---------- Illustrations (lib/illustrations.mjs) ----------
    Product UIs on a dotted panel. Layers are <g data-depth> (pointer/scroll parallax via the
    `translate` property, motion layer); the staged build below only runs with JS + motion and

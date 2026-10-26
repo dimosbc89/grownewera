@@ -1,7 +1,7 @@
 # GROW Agency: Greek site (marketingagencygreece.online)
 
-The Greek-language site for GROW Agency: 27 pages plus a 404, generated from the copy doc
-(`content/site-copy.docx`) and styled in the GROW identity (black, white, acid lime `#CCFF00`,
+The Greek-language site for GROW Agency: 28 pages plus a 404, generated from the copy doc
+(`content/site-copy.docx`, plus `content/*.md` for pages outside it) and styled in the GROW identity (black, white, acid lime `#CCFF00`,
 Space Grotesk + Inter, zero radius, thin rules, numbered cards).
 
 **Motion:** WebGL 3D heroes (Three.js) in six variants, Lenis smooth scrolling, and GSAP
@@ -60,6 +60,20 @@ The layouts follow the structure, not the placeholders, so filling the slots bef
 every card where it is. The build checks each page kind for the blocks it should have (results,
 testimonials, people, stats) and prints a `[layout]` warning when a copy edit loses one.
 
+### Pages outside the Word doc (`content/*.md`)
+
+A page that is not in the doc lives in its own Markdown file, one `# Page` per file, with the
+same shape as a doc page: a `## SEO` table (URL, Title tag, Meta description, H1, Punchline), a
+`## Hero` block with `**Eyebrow:**` / `**H1:**` / `**Υπότιτλος:**` / `**Κουμπιά:**` /
+`**Trust strip:**` lines, the sections as `##` headings, `###` card groups, `-` and `1.` lists
+(a bold `**Lead.**` opening works like the doc's bold runs) and a `## Τελικό CTA`. The paragraph
+under the `#` title is the editorial note. `lib/markdown.mjs` turns the file into the doc's block
+list, so every layout in the table above applies, and the build adds the page after the doc's.
+The first one is `/creators/` (`content/creators.md`). Its sign-up form is not copy: the field
+groups, labels, chips and channel rows are defined in `lib/creators.mjs` (`GROUPS`, `CHANNELS`;
+the `name` keys are what arrives in the email or at `formEndpoint`), while the consent text, the
+button and the messages come from the page's `## Φόρμα creators` section.
+
 ## Brand
 
 * Colours, type and spacing: `src/css/tokens.css`
@@ -77,18 +91,19 @@ The page is `lang="el"`, so uppercase headings drop their accents correctly.
 * Replace the three demo case studies. They are `noindex` and left out of the sitemap until then.
 * Have a lawyer review the three legal pages.
 * Set `formEndpoint` in `lib/site.mjs` (Formspree, Netlify Forms or your own API). Without it the
-  form opens the visitor's email app with the message pre-filled (also without JavaScript: the
-  form's action is then a `mailto:` URL).
+  forms (contact and creators) open the visitor's email app with the message pre-filled (also
+  without JavaScript: the form's action is then a `mailto:` URL).
 * Analytics and ads tags: load them only after consent. Listen for the `grow:consent` event or
   read `window.growConsent` (see `src/js/cookies.js`).
 
 ## Layout of the repo
 
 ```
-content/        site-copy.docx (source), copy.json (extracted)
+content/        site-copy.docx (source), copy.json (extracted), creators.md (the creators page)
 lib/            site.mjs (settings, nav, 3D scene per page), content.mjs (doc -> pages),
+                markdown.mjs (content/*.md -> doc blocks), creators.mjs (creator form fields),
                 render.mjs (sections), layout.mjs (shell), illustrations.mjs (SVG art)
-src/js/         main.js (boot only), form.js, cookies.js
+src/js/         main.js (boot only), form.js, creators-form.js, cookies.js
 src/js/motion/  Lenis, preloader, hero, reveals, pins/stories/stacks, marquees, pointer, UI
 src/js/three/   WebGL entry (lazy), core stage, post-processing, scenes/*, story, wordmark
 src/css/        tokens, base, layout, components, sections, three, motion
