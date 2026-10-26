@@ -305,12 +305,12 @@ tbody tr:last-child td { border-bottom: 0; }
 .field input, .field textarea { width: 100%; padding: 10px 0 12px; border-bottom: 1px solid var(--line-strong); font-size: 1.1rem; outline: none; resize: vertical; }
 .field textarea::placeholder { color: var(--grey-2); }
 .field__line { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--lime); transform: scaleX(0); transform-origin: left; transition: transform 0.5s var(--ease); }
-.field:focus-within .field__line { transform: scaleX(1); }
+.field:not(fieldset):focus-within .field__line { transform: scaleX(1); }
 .field:focus-within .field__l { color: var(--lime); }
 .field.is-invalid input, .field.is-invalid textarea { border-bottom-color: var(--red); }
 /* Still invalid while being corrected: the label and the focus line stay red until it is valid. */
 .field.is-invalid .field__l, .field.is-invalid:focus-within .field__l { color: var(--red); }
-.field.is-invalid .field__line { background: var(--red); }
+.field.is-invalid:not(fieldset) .field__line { background: var(--red); }
 /* Inline message (form.js): under the field, in the row gap, so the layout never jumps. */
 .field__err { position: absolute; left: 0; top: calc(100% + 5px); font-family: var(--font-mono); font-size: var(--fs-mono); line-height: 1.4; letter-spacing: 0.04em; color: var(--red); }
 .field__err::before { content: '✕ '; }
@@ -346,20 +346,31 @@ tbody tr:last-child td { border-bottom: 0; }
 /* ---------- Creators form (/creators/, lib/layout.mjs creatorsForm, src/js/creators-form.js) ----------
    Six numbered groups on thin rules, the same fields and chips as the contact form (chips in
    radio mode take a diamond marker), lime asterisks on required fields, a compact channel table
-   (platform | handle or link | followers) whose rows wrap on phones, and a sticky "03 / 06"
-   progress pill on desktop. */
+   (platform | handle or link | followers) whose rows wrap on phones, and a "03 / 06" progress
+   HUD in the section's sticky heading on desktop (render.mjs), so it never covers an input. */
 .sr { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
 .req { color: var(--lime); font-weight: 700; margin-left: 0.25em; }
 .form--creators { padding-top: clamp(22px, 2.8vw, 36px); }
 .form__legend { font-family: var(--font-mono); font-size: var(--fs-mono); color: var(--grey-2); letter-spacing: 0.06em; text-transform: uppercase; line-height: 1.4; }
 .form__legend .req { margin: 0 0.4em 0 0; }
-.form__progress { position: sticky; top: calc(var(--header-h) + 16px); z-index: 3; height: 0; }
-.form__progress span {
-  position: absolute; right: 0; top: 0; display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px;
-  border: 1px solid var(--line-strong); background: var(--panel); font-family: var(--font-mono); font-size: var(--fs-mono); letter-spacing: 0.1em; color: var(--grey);
+.form-step {
+  display: flex; width: max-content; align-items: center; gap: 6px; margin-top: clamp(20px, 2.4vw, 32px); padding: 5px 10px;
+  border: 1px solid var(--line-strong); font-family: var(--font-mono); font-size: var(--fs-mono); letter-spacing: 0.1em; color: var(--grey);
 }
-.form__progress b { font-weight: 500; color: var(--lime); }
-@media (max-width: 900px) { .form__progress { display: none; } }
+.form-step b { font-weight: 500; color: var(--lime); }
+@media (max-width: 900px) { .form-step { display: none; } }
+/* The profile as text (creators-form.js, mailto path only): the email app may cut a long mailto:
+   body or not open at all, so the full profile stays on the page with a copy button. */
+.form__copy { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--line); }
+.form__copy p { margin: 8px 0 14px; font-size: 0.92rem; line-height: 1.5; color: var(--grey); max-width: 68ch; }
+.form__copy textarea {
+  display: block; width: 100%; min-height: 200px; padding: 14px 16px; border: 1px solid var(--line-strong); background: var(--black);
+  color: var(--white); font-family: var(--font-mono); font-size: 0.8rem; line-height: 1.6; letter-spacing: 0.01em; resize: vertical; outline: none;
+}
+.form__copy textarea:focus-visible { border-color: var(--lime); }
+.form__copy-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-top: 14px; }
+.form__copy-note { font-family: var(--font-mono); font-size: var(--fs-mono); letter-spacing: 0.06em; color: var(--lime); }
+.form__copy-note:empty { display: none; }
 .fgroup { padding: clamp(28px, 3.4vw, 44px) 0 clamp(32px, 3.8vw, 52px); border-top: 1px solid var(--line); }
 .form__legend + .fgroup { margin-top: 22px; }
 .fgroup--consent { padding-bottom: 0; }
@@ -374,7 +385,8 @@ tbody tr:last-child td { border-bottom: 0; }
 .form--creators fieldset.field { border: 0; min-width: 0; }
 .form--creators .field__l { display: block; }
 .form--creators .field--chips .field__hint { margin-top: -2px; }
-.form--creators:has(.field__err) .form__grid { row-gap: 50px; }
+.form--creators:has(.field__err) .form__grid { row-gap: 28px; } /* no global jump: the invalid field makes its own room */
+.form--creators .field.is-invalid { margin-bottom: 22px; }
 /* Radio chips: one answer, a diamond marker instead of the checkbox square. */
 .opts--single .opt span::before { width: 5px; height: 5px; transform: rotate(45deg); }
 /* Channel table */

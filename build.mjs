@@ -171,7 +171,7 @@ ${footer(shared, page)}
 function renderPage(page, shared, assets) {
   page.kind = KIND(page.url);
   page.art = ARTS[page.url]; // illustration per page: lib/site.mjs
-  const ctx = { url: page.url, kind: page.kind, filters: [], form: (blocks) => form(shared, blocks), creatorsForm: (blocks) => creatorsForm(shared, blocks) };
+  const ctx = { url: page.url, kind: page.kind, filters: [], form: (blocks) => form(shared, blocks), creatorsForm: (blocks, labelId) => creatorsForm(shared, blocks, labelId) };
 
   // FAQ entries for structured data.
   page.faqs = [];

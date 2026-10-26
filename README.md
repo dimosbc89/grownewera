@@ -92,7 +92,16 @@ The page is `lang="el"`, so uppercase headings drop their accents correctly.
 * Have a lawyer review the three legal pages.
 * Set `formEndpoint` in `lib/site.mjs` (Formspree, Netlify Forms or your own API). Without it the
   forms (contact and creators) open the visitor's email app with the message pre-filled (also
-  without JavaScript: the form's action is then a `mailto:` URL).
+  without JavaScript: the form's action is then a `mailto:` URL). For `/creators/` treat the
+  endpoint as required: a filled profile is far longer than a `mailto:` URL can safely carry
+  (older Windows mail handlers cut the body around 2,000 characters), so until then the page
+  sends the email app a capped body and shows the full profile in a copy box under the button.
+* `/creators/` and the privacy policy: before the page goes live the lawyer adds the creators
+  list to the policy in the Word doc (the data the form collects, the purpose and legal basis
+  (consent), the retention period, brands as recipients for a specific campaign only, and that
+  this page addresses creators aged 18+). The retention period is the same `[ΣΥΜΠΛΗΡΩΣΤΕ:
+  διάστημα]` slot as in the page's consent text and FAQ. The page is a footer-only landing page
+  (not in the header or the mobile menu); link to it from creator outreach.
 * Analytics and ads tags: load them only after consent. Listen for the `grow:consent` event or
   read `window.growConsent` (see `src/js/cookies.js`).
 

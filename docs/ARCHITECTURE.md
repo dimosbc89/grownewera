@@ -236,15 +236,22 @@ three/story.js must accept every set (falling back to `growth` for one it does n
 * Creators form (`/creators/`, `form#creators-form[data-form="creators"]`, lib/layout.mjs
   `creatorsForm()`, fields from lib/creators.mjs): the same contract, run by creators-form.js.
   Extra hooks: `.fgroup[data-group="01"][data-label]` per numbered group (`[data-form-step]` in
-  `.form__progress` shows the current one on desktop); `fieldset[data-chips][data-label]` chip
+  the section's sticky heading (`.sec-head > .form-step`, render.mjs) shows the current one on
+  desktop; it is looked up from the form's `.sec`); `fieldset[data-chips][data-label]` chip
   groups (`data-required`: at least one checked, `.field--single` = radios, error text
   `data-err-choice` / `data-err-choices` on the form); `fieldset[data-channels]` with one
   `[data-chrow][data-label]` per platform holding `[data-handle]` and `[data-followers]` inputs
   (`ch_<key>`, `ch_<key>_followers`, plus `ch_other_name`), valid once one row has both, error
   text from its `data-err-channel`. `data-subject` is the mail subject stem; the form dispatches
-  `grow:form-mail` (`detail { subject, body }`) before opening the email app. Errors on a
-  fieldset carry no `aria-invalid` (only `aria-describedby`). Labels for the mail body come from
-  `data-label`, never from the `[data-scramble]` text.
+  `grow:form-mail` (`detail { subject, body, url, truncated }`: the full profile, the `mailto:`
+  URL kept under ~1,900 characters by dropping long answers and trailing lines, never the first
+  two groups) before opening the email app, and appends `.form__copy` (the full profile in a
+  read-only textarea with a copy button) after `.form__foot`. The form carries
+  `aria-labelledby` = the section's h2. Errors on a fieldset carry no `aria-invalid` (only
+  `aria-describedby`); the focus / error line (`.field__line`) is scoped to a control's own
+  `.field`, never a fieldset. Labels (`.field__l`) hold the text in an inner `[data-scramble]`
+  span with the `.req` mark as a sibling, so the asterisk never scrambles. Labels for the mail
+  body come from `data-label`, never from the `[data-scramble]` text.
 * `.draft-note` (drafts only) sets `--note-h` on `<html>` (main.js measures it); the hero below it
   sizes its first screen and viewfinder with it.
 * Result cards keep the `[DEMO n]` marker visible (in their tag) while `SITE.showDrafts` is on.
@@ -253,6 +260,7 @@ three/story.js must accept every set (falling back to `growth` for one it does n
   blog creators legal` (+ `404`). `creators` is `/creators/` (content/creators.md): hero data
   cells `Reply` / `Cost`, buttons that stay on the page (`#creators-form`, the steps section's
   `#sN` via render.mjs `sectionAnchor()`; the CTA's "Γράψτε μας" is a `mailto:` with a ✉ icon),
+  a footer-only page (not in the header nav or `#mnav`),
   the `## Φόρμα creators` section rendered by `creatorsForm()`, and `.cta__intl` (`lang="en"`)
   for the CTA's "Διεθνείς creators" line.
 * Hero: `.hero--<kind>` (page kind from build.mjs) sets the title scale. `.hero__top` (running head
