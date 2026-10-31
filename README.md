@@ -69,6 +69,11 @@ same shape as a doc page: a `## SEO` table (URL, Title tag, Meta description, H1
 (a bold `**Lead.**` opening works like the doc's bold runs) and a `## Τελικό CTA`. The paragraph
 under the `#` title is the editorial note. `lib/markdown.mjs` turns the file into the doc's block
 list, so every layout in the table above applies, and the build adds the page after the doc's.
+A line `![alt text](/images/… "caption")` is a figure: the file lives in `src/static/` (an SVG is
+inlined so it takes the site's fonts and colours, a portrait screenshot is kept narrow). A case
+study under `/erga/` (e.g. `content/erga-sk-advisors.md`) is indexed and adds its own card to the
+works page when its SEO table has `Κάρτα: Τίτλος`, `Κάρτα: Υπηρεσίες`, `Κάρτα: Αποτέλεσμα` and
+`Κάρτα: Τύπος πελάτη` rows; only the doc's `/erga/demo-…/` templates stay `noindex`.
 The first one is `/creators/` (`content/creators.md`). Its sign-up form is not copy: the field
 groups, labels, chips and channel rows are defined in `lib/creators.mjs` (`GROUPS`, `CHANNELS`;
 the `name` keys are what arrives in the email or at `formEndpoint`), while the consent text, the
@@ -110,7 +115,7 @@ The page is `lang="el"`, so uppercase headings drop their accents correctly.
 * Fill every highlighted slot: `[ΤΙΜΗ]`, `[DEMO …]`, `XX`, `[ΟΝΟΜΑ]`, `[ΣΥΜΠΛΗΡΩΣΤΕ: …]`,
   `[ΕΠΩΝΥΜΙΑ]`, `[ΑΦΜ]`, `[ΓΕΜΗ]`. Then set `showDrafts: false` in `lib/site.mjs`, which removes
   the highlighting and the editorial notes.
-* Replace the three demo case studies. They are `noindex` and left out of the sitemap until then.
+* Replace the three demo case studies (`/erga/demo-…/`). They are `noindex` and left out of the sitemap until then.
 * Have a lawyer review the three legal pages.
 * Set `formEndpoint` in `lib/site.mjs` (Formspree, Netlify Forms or your own API). Without it the
   forms (contact and creators) open the visitor's email app with the message pre-filled (also

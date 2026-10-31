@@ -213,6 +213,9 @@
 .stat { position: relative; display: flex; flex-direction: column; gap: 14px; padding: 28px 28px 30px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--panel); min-height: 200px; }
 .stat::before { counter-increment: st; content: counter(st, decimal-leading-zero) ' /'; font-family: var(--font-mono); font-size: var(--fs-mono); color: var(--grey-2); letter-spacing: 0.08em; }
 .stat__num { margin-top: auto; font-family: var(--font-display); font-weight: 700; font-size: clamp(2.8rem, 2rem + 2.8vw, 4.8rem); line-height: 0.88; letter-spacing: -0.045em; color: var(--lime); }
+.stat__num { white-space: nowrap; }
+/* Five-digit Greek figures ("25.653") fit a quarter-width tile at a smaller size. */
+.stat__num--long { font-size: clamp(2.1rem, 1.4rem + 1.6vw, 3rem); }
 .stat__num mark.slot { font-family: var(--font-display) !important; font-size: 1em !important; outline: 0 !important; background: none !important; padding: 0 !important; letter-spacing: -0.045em !important; }
 .stat__label { color: var(--grey); font-size: 0.95rem; line-height: 1.4; padding-top: 14px; border-top: 1px solid var(--line); }
 
@@ -253,6 +256,32 @@ tbody tr:last-child td { border-bottom: 0; }
   tbody tr:last-child td { border-bottom: 1px solid var(--line); }
   tr td:last-child { border-bottom: 0 !important; }
   td::before { content: attr(data-label); font-family: var(--font-mono); font-weight: 400; font-size: 0.66rem; color: var(--lime); text-transform: uppercase; letter-spacing: 0.06em; }
+}
+
+/* ---------- Figures: screenshots and charts (content/*.md `![alt](/src "caption")`) ---------- */
+* + .shot { margin-top: 32px; }
+.shot + * { margin-top: 28px; }
+.shot { border: 1px solid var(--line); background: var(--panel); padding: 12px; }
+.shot img { display: block; width: 100%; height: auto; }
+.shot figcaption { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); font-family: var(--font-mono); font-size: var(--fs-mono); line-height: 1.6; letter-spacing: 0.04em; color: var(--grey-2); }
+.shot--portrait { max-width: 440px; }
+.shot--chart { padding: 20px 20px 14px; }
+.shot--chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.shot--chart text { font-family: var(--font-body); fill: var(--grey); }
+.shot--chart .c-strong { font-family: var(--font-display); font-weight: 700; fill: var(--white); }
+.shot--chart .c-mono { font-family: var(--font-mono); letter-spacing: 0.04em; fill: var(--grey-2); }
+.shot--chart .c-grid { stroke: var(--line); }
+.shot--chart .c-axis { stroke: var(--line-strong); }
+.shot--chart .c-sk { fill: var(--lime); }
+.shot--chart .c-exo { fill: var(--grey-2); }
+.shot--chart .c-ref { stroke: var(--grey-2); }
+.sec:nth-of-type(even) .shot { background: var(--black); }
+@media (max-width: 560px) {
+  .shot { padding: 8px; }
+  .shot--chart { padding: 12px 10px 10px; }
+  /* On a phone the chart is a third of its drawn size: keep every fourth month and the totals. */
+  .shot--chart text { font-size: 18px; }
+  .shot--chart .c-minor, .shot--chart .c-note, .shot--chart .c-ref { display: none; }
 }
 
 /* ---------- FAQ ---------- */

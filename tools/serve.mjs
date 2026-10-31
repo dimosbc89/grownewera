@@ -11,7 +11,7 @@ const arg = (name, fallback) => {
 };
 const root = path.resolve(arg('--dir', 'dist'));
 const port = Number(arg('--port', 4173)) || 4173;
-const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2', '.woff': 'font/woff', '.xml': 'application/xml', '.txt': 'text/plain', '.json': 'application/json', '.webmanifest': 'application/manifest+json' };
+const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.woff2': 'font/woff2', '.woff': 'font/woff', '.xml': 'application/xml', '.txt': 'text/plain', '.json': 'application/json', '.webmanifest': 'application/manifest+json' };
 
 if (!fs.existsSync(root)) {
   console.error(`No build at ${root}. Run: node build.mjs --out ${path.relative('.', root) || '.'}`);

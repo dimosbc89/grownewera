@@ -143,10 +143,17 @@ function initCounters() {
     const raw = el.dataset.count;
     const m = raw.match(/[\d.,]+/);
     if (!m) continue;
-    const target = parseFloat(m[0].replace(',', '.'));
-    const decimals = (m[0].split(/[.,]/)[1] || '').length;
+    // Greek figures group thousands with dots and use a decimal comma: "25.653", "1.063.821", "2,5".
+    const grouped = /^\d{1,3}(\.\d{3})+(,\d+)?$/.test(m[0]);
+    const plain = grouped ? m[0].replace(/\./g, '').replace(',', '.') : m[0].replace(',', '.');
+    const target = parseFloat(plain);
+    const decimals = (plain.split('.')[1] || '').length;
+    const group = (s) => (grouped ? s.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : s);
     const obj = { v: 0 };
-    const render = () => (el.textContent = raw.replace(m[0], obj.v.toFixed(decimals).replace('.', ',')));
+    const render = () => {
+      const [int, dec] = obj.v.toFixed(decimals).split('.');
+      el.textContent = raw.replace(m[0], group(int) + (dec ? `,${dec}` : ''));
+    };
     render();
     gsap.to(obj, {
       v: target, duration: 1.8, ease: EASE.expo,

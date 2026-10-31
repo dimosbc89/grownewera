@@ -71,6 +71,10 @@ const KIND = (url) =>
   : url.startsWith('/blog/') ? 'post'
   : 'legal';
 
+// The three case-study templates in the Word doc (/erga/demo-…/) stay out of search until they are
+// replaced; a real case study (content/*.md under /erga/) is indexed like any other page.
+const isDemoCase = (page) => /^\/erga\/demo-/.test(page.url ?? '');
+
 function jsonLd(page, faqs) {
   const org = {
     '@type': 'ProfessionalService',
@@ -132,7 +136,7 @@ function doc(page, main, shared, assets) {
   const title = page.meta['Title tag'] ?? `${page.name} – GROW Agency`;
   const desc = page.meta['Meta description'] ?? '';
   const canonical = `${SITE.domain}${page.url ?? '/404.html'}`;
-  const noindex = page.kind === 'case' || page.url == null;
+  const noindex = isDemoCase(page) || page.url == null;
   // The hero scene's module graph, preloaded by three/index.js on the `high` tier.
   const scene = page.url == null ? 'blocks' : SCENES[page.url];
   const glPreload = scene ? assets.gl[scene] : null;
@@ -338,6 +342,18 @@ async function build() {
   }
   const posts = loadPosts('content/posts');
 
+  // A case study written as content/*.md under /erga/ adds its own card to the works page's
+  // "Τα έργα μας" grid, ahead of the doc's rows. The card comes from the page's SEO table:
+  // "Κάρτα: Τίτλος", "Κάρτα: Υπηρεσίες", "Κάρτα: Αποτέλεσμα" and "Κάρτα: Τύπος πελάτη".
+  const works = pages.find((p) => p.url === '/erga/');
+  const grid = works?.sections.find((s) => /^Τα έργα μας$/.test(s.title))?.blocks.find((b) => b.t === 'table');
+  const cases = pages.filter((p) => /^\/erga\/.+/.test(p.url ?? '') && !isDemoCase(p) && p.meta['Κάρτα: Τίτλος']);
+  if (grid) {
+    grid.rows.splice(1, 0, ...cases.map((p) => [
+      p.meta['Κάρτα: Τίτλος'], p.meta['Κάρτα: Υπηρεσίες'] ?? '', p.meta['Κάρτα: Αποτέλεσμα'] ?? '', p.url, p.meta['Κάρτα: Τύπος πελάτη'] ?? '',
+    ]));
+  }
+
   // Published posts open the blog index (after the doc's filter section, which feeds their
   // filter bar); the doc's topic proposal follows them.
   const blog = pages.find((p) => p.url === '/blog/');
@@ -371,7 +387,7 @@ async function build() {
   write(path.join(OUT, '404.html'), doc({ name: '404', meta: notFoundMeta, kind: '404', url: null }, notFound(shared), shared, assets));
 
   const today = new Date().toISOString().slice(0, 10);
-  const indexable = pages.filter((p) => p.kind !== 'case');
+  const indexable = pages.filter((p) => !isDemoCase(p));
   write(path.join(OUT, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${indexable.map((p) => `  <url><loc>${SITE.domain}${p.url}</loc><lastmod>${today}</lastmod></url>`).join('\n')}
