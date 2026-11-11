@@ -17,6 +17,8 @@ removing a hook is a breaking change: update this file and every consumer in the
 
 ```
 src/js/main.js              boot only: initMotion(), initThree(), initForm() / initCreatorsForm(), initCookies()
+src/js/landing.js           boot for landing pages (content/landings/*.html): the motion modules below without the
+                            site shell (no header, hero, pins, WebGL), anchors, the design's demo form, consent + GA
 src/js/form.js              contact form; shared helpers (statusLine, marker, showProblem)
 src/js/creators-form.js     creator sign-up form ([data-form="creators"]): chip groups, channel rows, mail body
 src/js/motion/index.js      initMotion(): runs every motion module in order (two phases), returns { lenis, scrollTo }
@@ -47,6 +49,8 @@ src/js/three/story-shapes.js story shape sets ([data-story] value -> shapes) and
 src/js/three/wordmark.js    CTA 3D "GROW." wordmark (canvas[data-scene="wordmark"])
 src/js/three/wordmark-glyphs.json  "GROW." outlines from Space Grotesk 700 (tools/wordmark-glyphs.mjs)
 src/css/motion.css          initial/hidden states and CSS used only by the motion layer
+src/css/landing.css         landing pages only: tokens, fonts (+ the design's family names), motion.css, cursor,
+                            cookie banner. No base reset or site layout, so the design's inline styles rule
 src/css/three.css           canvas/stage styling used only by the WebGL layer
 ```
 
@@ -161,8 +165,7 @@ work before `grow:hero-in`.
 | `[data-scramble]` | mono labels | motion/ui | text scramble on reveal and hover |
 | `[data-filters]` + `[data-filter-list]` | works, blog | motion/ui | filtering with Flip animation |
 | `[data-count]` | stat numbers | motion/ui | count-up |
-| `[data-countdown]` | a "mm:ss" timer (booking-app waitlist hold) | motion/ui | ticks down once a second while on screen, starts over at 00:00; `.is-low` under a minute. The markup keeps the full time (reduced motion, no JS) |
-| `[data-wide]` | an html block in a content/*.md page | lib/render | takes the full column (offset layout / wide card intro) |
+| `[data-countdown]` | a "mm:ss" timer (booking app landing) | motion/ui | ticks down once a second while on screen, starts over at 00:00; `.is-low` under a minute. The markup keeps the full time (reduced motion, no JS) |
 | `[data-marquee="speed"]` | marquees | motion/marquee | loop, velocity reactive |
 | `[data-magnetic]` `[data-tilt]` | buttons, cards | motion/pointer | micro-interactions |
 | `[data-cta]` | CTA band | motion, three | CTA reveal; holds the wordmark canvas. `.is-open` (motion/reveals.js) once the band has mostly grown out of its square: the wordmark stage only shows from then on (three.css) |
@@ -275,10 +278,6 @@ three/story.js must accept every set (falling back to `growth` for one it does n
   under 780px tall and in phone landscape, and the viewfinder is sized against the visible part
   of the hero (`--hero-vis`), never the whole hero. On
   desktop the copy column stays within ~60% of the width, so the right ~40% is free for the rig.
-  A content/*.md page can put its own media there: the Hero section's fenced html block becomes
-  `.hero__media[data-depth]` (`.hero--media`; same box as the viewfinder, over the stage; in the
-  flow under the copy below 1080px). Its children animate in by CSS only (src/css/app.css), never
-  by GSAP, since the wrapper carries the depth.
 * CTA: `.cta__rail` (aria-hidden mono row along the band's bottom) sits outside `.cta__inner`, which
   holds the copy only (three/wordmark.js measures it). The copy column is ≤ ~13ch / 46ch wide.
 * Story stage extras: `.story__set` (set label) and `.story__bar > i` (progress rule,

@@ -196,6 +196,85 @@ ${footer(shared, page)}
 `;
 }
 
+// ---------- Landing pages: a design kept exactly as drawn (content/landings/*.html) ----------
+// The file is the page body as designed (inline styles), opened by an HTML comment with
+// "Key: value" lines (URL, Title tag, Meta description, Primary term, Breadcrumb, Θέμα email).
+// The page gets the site's <head> (SEO, schema, preloaded fonts), the cookie banner and GA, and
+// its own bundle (src/js/landing.js + src/css/landing.css): the site's motion modules driven by
+// the data-* hooks in the markup, without the site's layout CSS. Elements marked data-faq (an h3
+// and its answer) feed the FAQPage schema; the form marked data-landing-form posts like the
+// contact form (SITE.formEndpoint, else the visitor's email app).
+const LANDING_HEAD_SCRIPT = `(function(d){var c=d.classList;c.replace('no-js','js');c.add(matchMedia('(prefers-reduced-motion: reduce)').matches?'no-motion':'motion');try{sessionStorage.removeItem('grow-curtain')}catch(e){}setTimeout(function(){if(!window.__growReady){c.remove('motion');c.add('no-motion')}},4000)})(document.documentElement)`;
+
+const stripTags = (h) => h.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+
+function loadLandings(dir) {
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir).filter((n) => n.endsWith('.html')).sort().map((f) => {
+    const raw = fs.readFileSync(path.join(dir, f), 'utf8');
+    const m = raw.match(/^\s*<!--([\s\S]*?)-->/);
+    if (!m) throw new Error(`${dir}/${f}: missing the settings comment`);
+    const meta = {};
+    for (const line of m[1].split('\n')) {
+      const kv = line.match(/^\s*([^:]{2,40}):\s*(.+?)\s*$/);
+      if (kv) meta[kv[1]] = kv[2];
+    }
+    if (!meta.URL) throw new Error(`${dir}/${f}: no URL line`);
+    const body = raw.slice(m[0].length).trim();
+    const faqs = [...body.matchAll(/<div data-faq[^>]*>\s*<h3[^>]*>([\s\S]*?)<\/h3>\s*<p[^>]*>([\s\S]*?)<\/p>/g)].map(([, q, a]) => [stripTags(q), stripTags(a)]);
+    const name = meta['Primary term'] ?? meta['Title tag'];
+    const parent = meta.Breadcrumb === 'Υπηρεσίες' ? [['Υπηρεσίες', '/ypiresies/']] : [];
+    return { name, url: meta.URL, meta, body, faqs, landing: true, trail: [['Αρχική', '/'], ...parent, [name, null]] };
+  });
+}
+
+function landingDoc(page, shared, assets) {
+  const title = page.meta['Title tag'];
+  const desc = page.meta['Meta description'] ?? '';
+  const canonical = `${SITE.domain}${page.url}`;
+  const action = SITE.formEndpoint || `mailto:${SITE.email}`;
+  const subject = page.meta['Θέμα email'] ?? 'Αίτημα προσφοράς';
+  const body = page.body.replace(/<form data-landing-form([^>]*?) action="#" method="post"/,
+    `<form data-landing-form$1 action="${esc(action)}" method="post"${SITE.formEndpoint ? '' : ' enctype="text/plain"'} data-mailto="${esc(SITE.email)}" data-subject="${esc(subject)}"`);
+  return `<!doctype html>
+<html lang="el" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>${esc(title)}</title>
+<meta name="description" content="${esc(desc)}">
+<link rel="canonical" href="${canonical}">
+<link rel="alternate" hreflang="el" href="${canonical}">
+${SITE.gaId ? `<meta name="ga-id" content="${esc(SITE.gaId)}">` : ''}
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="el_GR">
+<meta property="og:site_name" content="GROW Agency">
+<meta property="og:title" content="${esc(title)}">
+<meta property="og:description" content="${esc(desc)}">
+<meta property="og:url" content="${canonical}">
+<meta property="og:image" content="${SITE.domain}/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+${assets.fonts.map((f) => `<link rel="preload" href="${f}" as="font" type="font/woff2" crossorigin>`).join('\n')}
+<link rel="stylesheet" href="${assets.landing.css}">
+<script>${LANDING_HEAD_SCRIPT}</script>
+<script type="module" src="${assets.landing.js}"></script>
+<script type="application/ld+json">${jsonLd(page, page.faqs)}</script>
+</head>
+<body data-kind="landing">
+${cookieBanner(shared)}
+${body}
+<div class="cursor" aria-hidden="true"><span class="cursor__dot"></span><span class="cursor__ring"><span class="cursor__label"></span></span></div>
+</body>
+</html>
+`;
+}
+
 function renderPage(page, shared, assets) {
   page.kind = KIND(page.url);
   page.art = ARTS[page.url]; // illustration per page: lib/site.mjs
@@ -264,7 +343,6 @@ function renderPage(page, shared, assets) {
 
 // Layouts are chosen from the shape of the copy (lib/render.mjs). These are the blocks each page
 // kind is expected to end up with; a copy edit that loses one is reported, not shipped silently.
-// They describe the Word doc's pages: a content/*.md page sets its own shape and is not checked.
 const EXPECT = {
   home: { 'card--result': 'case-study cards (Αποτελέσματα)', 'card--quote': 'testimonial cards (Τι λένε οι πελάτες μας)' },
   service: { 'card--result': 'case-study cards (Αποτελέσματα…)', 'card--person': 'the person card (Ποιος…)', 'card--quote': 'testimonial cards (Τι λένε οι πελάτες μας)' },
@@ -275,7 +353,6 @@ const EXPECT = {
   creators: { 'form--creators': 'the creators form (Φόρμα creators)', 'class="steps"': 'the step timeline (Πώς δουλεύει)', 'class="faq"': 'the FAQ accordion' },
 };
 function checkLayout(page, html) {
-  if (page.md) return;
   for (const [needle, what] of Object.entries(EXPECT[page.kind] ?? {})) {
     if (!html.includes(needle)) console.warn(`[layout] ${page.url}: expected ${what} but the copy no longer renders any. Check the section's shape (README, "Change the copy").`);
   }
@@ -284,7 +361,7 @@ function checkLayout(page, html) {
 async function bundle() {
   const result = await esbuild.build({
     absWorkingDir: ROOT,
-    entryPoints: { main: 'src/js/main.js', style: 'src/css/main.css' },
+    entryPoints: { main: 'src/js/main.js', style: 'src/css/main.css', landing: 'src/js/landing.js', 'landing-style': 'src/css/landing.css' },
     outdir: `${OUT}/assets`,
     bundle: true,
     minify: true,
@@ -323,6 +400,10 @@ async function bundle() {
   return {
     js: outs.find((f) => /\/main-[^/]+\.js$/.test(f)),
     css: outs.find((f) => /\/style-[^/]+\.css$/.test(f)),
+    landing: {
+      js: outs.find((f) => /\/landing-[^/]+\.js$/.test(f)),
+      css: outs.find((f) => /\/landing-style-[^/]+\.css$/.test(f)),
+    },
     fonts: PRELOAD.map((name) => outs.find((f) => new RegExp(`/${name}-wght-normal-[^/]+\\.woff2$`).test(f))).filter(Boolean),
     gl,
   };
@@ -340,7 +421,7 @@ async function build() {
   const { pages, shared } = loadContent('content/copy.json');
   // Pages outside the Word doc: one content/*.md file per page (lib/markdown.mjs), after the doc's.
   for (const f of fs.readdirSync('content').filter((n) => n.endsWith('.md')).sort()) {
-    pages.push(...pagesFromBlocks(parseMarkdown(fs.readFileSync(path.join('content', f), 'utf8'))).map((p) => Object.assign(p, { md: true })));
+    pages.push(...pagesFromBlocks(parseMarkdown(fs.readFileSync(path.join('content', f), 'utf8'))));
   }
   const posts = loadPosts('content/posts');
 
@@ -383,6 +464,12 @@ async function build() {
       cta: null,
     };
     write(path.join(OUT, post.url, 'index.html'), renderPage(page, shared, assets));
+    pages.push(page);
+  }
+  // Landing pages (content/landings/*.html): kept exactly as designed, see landingDoc().
+  for (const page of loadLandings('content/landings')) {
+    page.kind = KIND(page.url);
+    write(path.join(OUT, page.url, 'index.html'), landingDoc(page, shared, assets));
     pages.push(page);
   }
   const notFoundMeta = { 'Title tag': 'Η σελίδα δεν βρέθηκε – GROW Agency', 'Meta description': shared.notFound._[0] ?? '' };

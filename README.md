@@ -74,22 +74,24 @@ inlined so it takes the site's fonts and colours, a portrait screenshot is kept 
 study under `/erga/` (e.g. `content/erga-sk-advisors.md`) is indexed and adds its own card to the
 works page when its SEO table has `Κάρτα: Τίτλος`, `Κάρτα: Υπηρεσίες`, `Κάρτα: Αποτέλεσμα` and
 `Κάρτα: Τύπος πελάτη` rows; only the doc's `/erga/demo-…/` templates stay `noindex`.
-A fenced ```` ```html ```` block is passed through as written, for visuals the copy shapes cannot
-make (app screens, a chat, price cards): inside `## Hero` it becomes the hero's media column (on
-the right, inside the 3D viewfinder; under the copy on phones), anywhere else it renders where it
-stands. Give it the site's motion hooks (`data-stagger`, `data-tilt`, `data-scramble`,
-`data-count`, `data-magnetic`, `data-countdown`) and `.card` / `.grid` classes so it moves like
-the rest of the site, and `data-wide` when it needs the full column. A section with a
-`**Φόρμα:** …` line becomes the page's own contact form (`**Ερώτηση επιλογών:**`,
-`**Επιλογές:** a · b · c`, `**Μήνυμα (placeholder):**`, `**Κουμπί:**`, `**Θέμα email:**`), and its
-"Ζητήστε …" buttons then jump to it instead of the contact page; a "… τιμές" button jumps to the
-section whose title mentions τιμές. `content/efarmogi-kratiseon.md` (the booking app landing
-page, styles in `src/css/app.css`) uses all of these. The doc's `[layout]` checks skip
-`content/*.md` pages, which set their own shape.
 The first one is `/creators/` (`content/creators.md`). Its sign-up form is not copy: the field
 groups, labels, chips and channel rows are defined in `lib/creators.mjs` (`GROUPS`, `CHANNELS`;
 the `name` keys are what arrives in the email or at `formEndpoint`), while the consent text, the
 button and the messages come from the page's `## Φόρμα creators` section.
+
+### Landing pages kept exactly as designed (`content/landings/*.html`)
+
+A landing page designed elsewhere (e.g. in Claude Design) is not rebuilt in the site's template:
+its markup and inline styles are copied as they are into `content/landings/<name>.html`, opened by
+an HTML comment with `URL:`, `Title tag:`, `Meta description:`, `Primary term:`, `Breadcrumb:` and
+`Θέμα email:` lines. The build gives it the site's `<head>` (canonical, Open Graph, Service +
+Breadcrumb + FAQPage schema from the `data-faq` items), the cookie banner, GA after consent, the
+sitemap entry, and its own small bundle (`src/js/landing.js` + `src/css/landing.css`): the site's
+motion modules, driven by the same hooks added to the markup (`data-split`, `data-reveal`,
+`data-stagger`, `data-tilt`, `data-magnetic`, `data-scramble`, `data-count`, `data-countdown`,
+`data-parallax`, `data-depth`, `data-clip`; `class="card"` makes a staggered group flip in in 3D).
+The form marked `data-landing-form` sends like the contact form. Images go in
+`src/static/images/<name>/`. `content/landings/efarmogi-kratiseon.html` is the booking app page.
 
 ## Blog posts
 

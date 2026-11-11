@@ -1,0 +1,91 @@
+/* Landing pages (content/landings/*.html): the design carries its own inline styles, so this
+   sheet holds only what the site's motion layer and shell need around it: the brand tokens and
+   self-hosted fonts, the motion states (motion.css), the cursor, the cookie banner and smooth
+   scroll. No base reset and no site layout: nothing here restyles the design itself. */
+@import './fonts.css';
+@import './tokens.css';
+@import './motion.css';
+
+/* The design names the families as Google Fonts does; same files as the site, self-hosted. */
+@font-face { font-family: 'Space Grotesk'; font-style: normal; font-display: swap; font-weight: 300 700; src: url(../../node_modules/@fontsource-variable/space-grotesk/files/space-grotesk-latin-wght-normal.woff2) format('woff2-variations'); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+@font-face { font-family: 'Manrope'; font-style: normal; font-display: swap; font-weight: 200 800; src: url(../../node_modules/@fontsource-variable/manrope/files/manrope-greek-wght-normal.woff2) format('woff2-variations'); unicode-range: U+0370-0377,U+037A-037F,U+0384-038A,U+038C,U+038E-03A1,U+03A3-03FF; }
+@font-face { font-family: 'Inter'; font-style: normal; font-display: swap; font-weight: 100 900; src: url(../../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2) format('woff2-variations'); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+@font-face { font-family: 'Inter'; font-style: normal; font-display: swap; font-weight: 100 900; src: url(../../node_modules/@fontsource-variable/inter/files/inter-greek-wght-normal.woff2) format('woff2-variations'); unicode-range: U+0370-0377,U+037A-037F,U+0384-038A,U+038C,U+038E-03A1,U+03A3-03FF; }
+@font-face { font-family: 'JetBrains Mono'; font-style: normal; font-display: swap; font-weight: 100 800; src: url(../../node_modules/@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2) format('woff2-variations'); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+@font-face { font-family: 'JetBrains Mono'; font-style: normal; font-display: swap; font-weight: 100 800; src: url(../../node_modules/@fontsource-variable/jetbrains-mono/files/jetbrains-mono-greek-wght-normal.woff2) format('woff2-variations'); unicode-range: U+0370-0377,U+037A-037F,U+0384-038A,U+038C,U+038E-03A1,U+03A3-03FF; }
+
+/* The design's own page rules (its <helmet> block), kept as drawn. */
+body { margin: 0; background: #000000; }
+a { color: #CCFF00; }
+a:hover { color: #E6FF80; }
+
+html { background: #000000; color-scheme: dark; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-stopped { overflow: hidden; }
+body { overflow-x: clip; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+::selection { background: #CCFF00; color: #000000; }
+:focus-visible { outline: 2px solid #CCFF00; outline-offset: 3px; }
+#demo :focus-visible { outline-color: #000000; }
+form :focus-visible { outline-color: #CCFF00; }
+section[id] { scroll-margin-top: 24px; }
+
+/* Micro-interactions the design leaves to the code: buttons and cards answer the pointer. */
+[data-magnetic] { transition: background-color 0.3s var(--ease), color 0.3s var(--ease), border-color 0.3s var(--ease); will-change: transform; }
+[data-magnetic][style*='background: #CCFF00']:hover { background-color: #E6FF80 !important; }
+[data-magnetic][style*='border: 1px solid']:hover { border-color: #CCFF00 !important; }
+.card { transition: border-color 0.4s var(--ease); }
+.card:hover { border-color: rgba(204, 255, 0, 0.55) !important; }
+[data-tilt] { transform-style: preserve-3d; }
+[data-tilt] img { transition: transform 0.8s var(--ease); }
+@media (hover: hover) { [data-tilt]:hover img { transform: translateY(-3px); } }
+[data-countdown] { font-variant-numeric: tabular-nums; }
+
+/* ---------- Cursor (motion/pointer.js), as on the site ---------- */
+.cursor { position: fixed; inset: 0; z-index: 1000; pointer-events: none; display: none; opacity: 0; }
+.has-cursor .cursor { display: block; }
+.cursor__dot, .cursor__ring { position: absolute; left: 0; top: 0; will-change: transform; }
+.cursor__dot { width: 6px; height: 6px; margin: -3px 0 0 -3px; background: var(--lime); }
+.cursor__ring {
+  width: 40px; height: 40px; margin: -20px 0 0 -20px; border: 1px solid rgba(204, 255, 0, 0.6);
+  display: grid; place-items: center; transition: width 0.35s var(--ease), height 0.35s var(--ease), margin 0.35s var(--ease), background 0.35s, border-color 0.35s;
+}
+.cursor__label { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--black); opacity: 0; transition: opacity 0.2s; }
+.cursor.is-link .cursor__ring { width: 64px; height: 64px; margin: -32px 0 0 -32px; border-color: var(--lime); }
+.cursor.is-label .cursor__ring { width: 88px; height: 88px; margin: -44px 0 0 -44px; background: var(--lime); border-color: var(--lime); }
+.cursor.is-label .cursor__label { opacity: 1; }
+.cursor.is-text .cursor__ring { width: 4px; height: 36px; margin: -18px 0 0 -2px; }
+.has-cursor, .has-cursor a, .has-cursor button { cursor: none; }
+.has-cursor input, .has-cursor textarea, .has-cursor select { cursor: text; }
+/* Over lime (the demo section: .cta, lime buttons: .btn--primary) the cursor turns black. */
+.cursor.is-dark .cursor__dot { background: var(--black); }
+.cursor.is-dark .cursor__ring { border-color: rgba(0, 0, 0, 0.6); }
+
+/* ---------- Cookie banner (same markup and behaviour as the site) ---------- */
+.cookie {
+  position: fixed; right: 16px; bottom: 16px; z-index: 950; width: min(400px, calc(100vw - 32px));
+  max-height: calc(100svh - 32px); overflow-y: auto; overscroll-behavior: contain;
+  background: var(--panel); border: 1px solid var(--line-strong); padding: 18px; font-family: var(--font-body); font-size: 0.82rem; line-height: 1.5; color: var(--grey);
+  box-shadow: -6px 6px 0 var(--lime);
+}
+.cookie[hidden] { display: none; }
+.cookie p, .cookie h2 { margin: 0; }
+.cookie__t { font-family: var(--font-display); font-size: 0.95rem; color: var(--white); margin-bottom: 8px; }
+.cookie a { color: var(--lime); text-decoration: underline; }
+.cookie__prefs { display: grid; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.cookie__prefs[hidden] { display: none; }
+.switch { display: flex; align-items: center; gap: 10px; color: var(--white); }
+.switch input { accent-color: var(--lime); width: 18px; height: 18px; margin: 0; }
+.cookie__btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.cookie .btn {
+  display: inline-flex; align-items: center; min-height: 40px; padding: 0 16px; border: 1px solid var(--line-strong); background: none; color: var(--white);
+  font-family: var(--font-display); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer;
+  transition: background-color 0.3s var(--ease), border-color 0.3s var(--ease), color 0.3s var(--ease);
+}
+.cookie .btn--primary { background: var(--lime); border-color: var(--lime); color: var(--black); }
+.cookie .btn:hover { border-color: var(--lime); }
+.cookie .btn--primary:hover { background: #E6FF80; }
+@media (max-width: 560px) {
+  .cookie { left: 8px; right: 8px; bottom: 8px; width: auto; max-height: 60svh; padding: 14px 14px 12px; font-size: 0.8rem; line-height: 1.42; box-shadow: 0 -4px 0 var(--lime); }
+  .cookie__btns .btn { flex: 1 1 auto; justify-content: center; }
+}
