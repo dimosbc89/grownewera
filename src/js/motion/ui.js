@@ -1,5 +1,5 @@
 // UI behaviour: FAQ accordion, filters (+ Flip), counters, legal TOC (+ reading progress),
-// [data-scramble] labels, [data-strike] negatives.
+// [data-scramble] labels, [data-strike] negatives, [data-countdown] timers.
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { motion, finePointer, $, $$ } from './util.js';
@@ -20,6 +20,7 @@ export function initUi() {
   initToc();
   initScramble();
   initStrike();
+  initCountdown();
 }
 
 // ---------- FAQ accordion: eased height, the answer's lines follow ----------
@@ -219,4 +220,25 @@ function initStrike() {
     once: true,
     onEnter: (batch) => batch.forEach((el, i) => gsap.delayedCall(i * 0.14, () => el.classList.add('is-struck'))),
   });
+}
+
+// ---------- [data-countdown] ----------
+// A "mm:ss" timer (the waitlist hold on the booking-app page) that starts ticking down, one second
+// at a time, once it scrolls into view, and starts over when it reaches 00:00. The markup holds
+// the full time, which is what reduced motion and no-JS visitors keep seeing.
+function initCountdown() {
+  if (!motion) return;
+  for (const el of $$('[data-countdown]')) {
+    const [m, sec] = el.textContent.trim().split(':').map(Number);
+    const full = m * 60 + (sec || 0);
+    if (!full) continue;
+    let left = full;
+    let timer = 0;
+    const show = () => { el.textContent = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`; };
+    const tick = () => { left = left > 0 ? left - 1 : full; show(); el.classList.toggle('is-low', left < 60); };
+    ScrollTrigger.create({
+      trigger: el, start: 'top 90%', end: 'bottom 10%',
+      onToggle: (st) => { clearInterval(timer); if (st.isActive) timer = setInterval(tick, 1000); },
+    });
+  }
 }

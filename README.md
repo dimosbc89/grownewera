@@ -74,6 +74,18 @@ inlined so it takes the site's fonts and colours, a portrait screenshot is kept 
 study under `/erga/` (e.g. `content/erga-sk-advisors.md`) is indexed and adds its own card to the
 works page when its SEO table has `Κάρτα: Τίτλος`, `Κάρτα: Υπηρεσίες`, `Κάρτα: Αποτέλεσμα` and
 `Κάρτα: Τύπος πελάτη` rows; only the doc's `/erga/demo-…/` templates stay `noindex`.
+A fenced ```` ```html ```` block is passed through as written, for visuals the copy shapes cannot
+make (app screens, a chat, price cards): inside `## Hero` it becomes the hero's media column (on
+the right, inside the 3D viewfinder; under the copy on phones), anywhere else it renders where it
+stands. Give it the site's motion hooks (`data-stagger`, `data-tilt`, `data-scramble`,
+`data-count`, `data-magnetic`, `data-countdown`) and `.card` / `.grid` classes so it moves like
+the rest of the site, and `data-wide` when it needs the full column. A section with a
+`**Φόρμα:** …` line becomes the page's own contact form (`**Ερώτηση επιλογών:**`,
+`**Επιλογές:** a · b · c`, `**Μήνυμα (placeholder):**`, `**Κουμπί:**`, `**Θέμα email:**`), and its
+"Ζητήστε …" buttons then jump to it instead of the contact page; a "… τιμές" button jumps to the
+section whose title mentions τιμές. `content/efarmogi-kratiseon.md` (the booking app landing
+page, styles in `src/css/app.css`) uses all of these. The doc's `[layout]` checks skip
+`content/*.md` pages, which set their own shape.
 The first one is `/creators/` (`content/creators.md`). Its sign-up form is not copy: the field
 groups, labels, chips and channel rows are defined in `lib/creators.mjs` (`GROUPS`, `CHANNELS`;
 the `name` keys are what arrives in the email or at `formEndpoint`), while the consent text, the

@@ -264,6 +264,7 @@ function renderPage(page, shared, assets) {
 
 // Layouts are chosen from the shape of the copy (lib/render.mjs). These are the blocks each page
 // kind is expected to end up with; a copy edit that loses one is reported, not shipped silently.
+// They describe the Word doc's pages: a content/*.md page sets its own shape and is not checked.
 const EXPECT = {
   home: { 'card--result': 'case-study cards (Αποτελέσματα)', 'card--quote': 'testimonial cards (Τι λένε οι πελάτες μας)' },
   service: { 'card--result': 'case-study cards (Αποτελέσματα…)', 'card--person': 'the person card (Ποιος…)', 'card--quote': 'testimonial cards (Τι λένε οι πελάτες μας)' },
@@ -274,6 +275,7 @@ const EXPECT = {
   creators: { 'form--creators': 'the creators form (Φόρμα creators)', 'class="steps"': 'the step timeline (Πώς δουλεύει)', 'class="faq"': 'the FAQ accordion' },
 };
 function checkLayout(page, html) {
+  if (page.md) return;
   for (const [needle, what] of Object.entries(EXPECT[page.kind] ?? {})) {
     if (!html.includes(needle)) console.warn(`[layout] ${page.url}: expected ${what} but the copy no longer renders any. Check the section's shape (README, "Change the copy").`);
   }
@@ -338,7 +340,7 @@ async function build() {
   const { pages, shared } = loadContent('content/copy.json');
   // Pages outside the Word doc: one content/*.md file per page (lib/markdown.mjs), after the doc's.
   for (const f of fs.readdirSync('content').filter((n) => n.endsWith('.md')).sort()) {
-    pages.push(...pagesFromBlocks(parseMarkdown(fs.readFileSync(path.join('content', f), 'utf8'))));
+    pages.push(...pagesFromBlocks(parseMarkdown(fs.readFileSync(path.join('content', f), 'utf8'))).map((p) => Object.assign(p, { md: true })));
   }
   const posts = loadPosts('content/posts');
 

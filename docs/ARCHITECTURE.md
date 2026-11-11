@@ -34,7 +34,7 @@ src/js/motion/pin.js        [data-hscroll], [data-steps], [data-story] progress,
 src/js/motion/marquee.js    [data-marquee]
 src/js/motion/pointer.js    cursor, [data-magnetic], [data-tilt], [data-depth] pointer parallax
 src/js/motion/transitions.js page transitions (curtain)
-src/js/motion/ui.js         FAQ, filters (+ Flip), counters, legal TOC, [data-scramble], [data-strike]
+src/js/motion/ui.js         FAQ, filters (+ Flip), counters, legal TOC, [data-scramble], [data-strike], [data-countdown]
 src/js/three/index.js       initThree(): finds canvases, picks quality tier, lazy-imports the rest
 src/js/three/core.js        async createStage(canvas, opts): renderer, scene, camera, rig, post-processing, loop
 src/js/three/post.js        post-processed hero: MSAA target, selective bloom, grain/aberration/vignette (lazy)
@@ -161,6 +161,8 @@ work before `grow:hero-in`.
 | `[data-scramble]` | mono labels | motion/ui | text scramble on reveal and hover |
 | `[data-filters]` + `[data-filter-list]` | works, blog | motion/ui | filtering with Flip animation |
 | `[data-count]` | stat numbers | motion/ui | count-up |
+| `[data-countdown]` | a "mm:ss" timer (booking-app waitlist hold) | motion/ui | ticks down once a second while on screen, starts over at 00:00; `.is-low` under a minute. The markup keeps the full time (reduced motion, no JS) |
+| `[data-wide]` | an html block in a content/*.md page | lib/render | takes the full column (offset layout / wide card intro) |
 | `[data-marquee="speed"]` | marquees | motion/marquee | loop, velocity reactive |
 | `[data-magnetic]` `[data-tilt]` | buttons, cards | motion/pointer | micro-interactions |
 | `[data-cta]` | CTA band | motion, three | CTA reveal; holds the wordmark canvas. `.is-open` (motion/reveals.js) once the band has mostly grown out of its square: the wordmark stage only shows from then on (three.css) |
@@ -273,6 +275,10 @@ three/story.js must accept every set (falling back to `growth` for one it does n
   under 780px tall and in phone landscape, and the viewfinder is sized against the visible part
   of the hero (`--hero-vis`), never the whole hero. On
   desktop the copy column stays within ~60% of the width, so the right ~40% is free for the rig.
+  A content/*.md page can put its own media there: the Hero section's fenced html block becomes
+  `.hero__media[data-depth]` (`.hero--media`; same box as the viewfinder, over the stage; in the
+  flow under the copy below 1080px). Its children animate in by CSS only (src/css/app.css), never
+  by GSAP, since the wrapper carries the depth.
 * CTA: `.cta__rail` (aria-hidden mono row along the band's bottom) sits outside `.cta__inner`, which
   holds the copy only (three/wordmark.js measures it). The copy column is ≤ ~13ch / 46ch wide.
 * Story stage extras: `.story__set` (set label) and `.story__bar > i` (progress rule,

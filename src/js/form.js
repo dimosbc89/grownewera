@@ -121,9 +121,9 @@ export function initForm(form) {
     if (!endpoint) {
       const body = [
         `Όνομα: ${data.get('name')}`, `Τηλέφωνο: ${data.get('phone')}`, `Email: ${data.get('email')}`,
-        `Υπηρεσία: ${services || '-'}`, '', data.get('message'),
+        `${form.dataset.choice || 'Υπηρεσία'}: ${services || '-'}`, '', data.get('message'),
       ].join('\n');
-      location.href = `mailto:${form.dataset.mailto}?subject=${encodeURIComponent('Αίτημα προσφοράς – ' + data.get('name'))}&body=${encodeURIComponent(body)}`;
+      location.href = `mailto:${form.dataset.mailto}?subject=${encodeURIComponent(`${form.dataset.subject || 'Αίτημα προσφοράς'} – ${data.get('name')}`)}&body=${encodeURIComponent(body)}`;
       // We can't know whether the email app opened, so don't claim the message was sent.
       say(`Ανοίγει το email σας με το μήνυμα έτοιμο. Αν δεν άνοιξε, γράψτε μας στο ${form.dataset.mailto} ή καλέστε στο 210 9713335.`, true);
       return;
