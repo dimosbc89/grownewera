@@ -3,7 +3,7 @@
 // flip-in + drift, tilt, magnetic buttons, cursor, scramble labels, counters, countdown), driven by
 // the same data-* hooks; none of the site's layout CSS, so the design's inline styles are untouched.
 // Plus the cookie consent + GA and a small handler for the design's demo form.
-import { initSmooth, settle, jumpTo } from './motion/smooth.js';
+import { initSmooth, settle, jumpTo, refreshSoon } from './motion/smooth.js';
 import { initVelocity } from './motion/velocity.js';
 import { initReveals } from './motion/reveals.js';
 import { initPointer } from './motion/pointer.js';
@@ -87,6 +87,25 @@ function initLandingForm() {
   });
 }
 
+// Calendly inline booking (iframe[data-calendly], "Book a call"): the frame takes the height the
+// booking page reports (it grows on phones and on the details step), and a booked call is sent to
+// GA as a lead, which only exists once the visitor has allowed statistics cookies.
+function initCalendly() {
+  const frames = [...document.querySelectorAll('iframe[data-calendly]')];
+  if (!frames.length) return;
+  addEventListener('message', (e) => {
+    if (e.origin !== 'https://calendly.com' || typeof e.data?.event !== 'string') return;
+    const frame = frames.find((f) => f.contentWindow === e.source);
+    if (!frame) return;
+    if (e.data.event === 'calendly.page_height') {
+      const h = parseInt(e.data.payload?.height, 10);
+      if (h > 400 && Math.abs(h - frame.offsetHeight) > 4) { frame.style.height = `${h}px`; refreshSoon(); }
+    } else if (e.data.event === 'calendly.event_scheduled') {
+      window.gtag?.('event', 'generate_lead', { method: 'calendly', page_path: location.pathname });
+    }
+  });
+}
+
 if (!window.__growBooted) {
   window.__growBooted = true;
   const motionOk = run('motion', () => {
@@ -103,6 +122,7 @@ if (!window.__growBooted) {
   }
   run('anchors', initAnchors);
   run('form', initLandingForm);
+  run('calendly', initCalendly);
   run('analytics', initAnalytics);
   run('cookies', initCookies);
 }
