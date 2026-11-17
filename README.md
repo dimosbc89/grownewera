@@ -91,7 +91,8 @@ motion modules, driven by the same hooks added to the markup (`data-split`, `dat
 `data-stagger`, `data-tilt`, `data-magnetic`, `data-scramble`, `data-count`, `data-countdown`,
 `data-parallax`, `data-depth`, `data-clip`; `class="card"` makes a staggered group flip in in 3D).
 The form marked `data-landing-form` sends like the contact form. Images go in
-`src/static/images/<name>/`. `content/landings/efarmogi-kratiseon.html` is the booking app page.
+`src/static/images/<name>/`. `content/landings/efarmogi-kratiseon.html` is the booking app page,
+`content/landings/efarmogi-epivraveusis.html` the loyalty app page (Koala Club screens).
 
 ## Blog posts
 
